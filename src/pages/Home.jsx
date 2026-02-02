@@ -72,7 +72,7 @@ export default function Home() {
           {events.map((event) => (
             <motion.div
               key={event.id}
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
             >
               <EventCard
                 event={event}
