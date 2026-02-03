@@ -5,8 +5,8 @@ import EventDetail from './pages/EventDetail'
 import Register from './pages/Register'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
-import ClientDashboard from './pages/dashboard/ClientDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
+import ClientDashboard from './pages/dashboard/ClientDashboard'
 import DeveloperDashboard from './pages/dashboard/DeveloperDashboard'
 import CreateEvent from './pages/admin/CreateEvent'
 import EditEvent from './pages/admin/EditEvent'
@@ -20,6 +20,19 @@ const rootRoute = createRootRoute({
       <AuthProvider>
         <Layout />
       </AuthProvider>
+    )
+  },
+  notFoundComponent: function NotFound() {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white mb-4">404</h1>
+          <p className="text-gray-500 mb-6">Page not found</p>
+          <a href="/" className="btn-primary">
+            Go Home
+          </a>
+        </div>
+      </div>
     )
   },
 })
@@ -58,18 +71,6 @@ const signupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/signup',
   component: SignUp,
-})
-
-const clientDashboardRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/dashboard',
-  component: function ClientDash() {
-    return (
-      <ProtectedRoute requiredRole="client">
-        <ClientDashboard />
-      </ProtectedRoute>
-    )
-  },
 })
 
 const adminDashboardRoute = createRoute({
@@ -120,6 +121,18 @@ const eventRegsRoute = createRoute({
   },
 })
 
+const clientDashboardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/dashboard',
+  component: function ClientDash() {
+    return (
+      <ProtectedRoute requiredRole="client">
+        <ClientDashboard />
+      </ProtectedRoute>
+    )
+  },
+})
+
 const developerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/developer',
@@ -138,11 +151,11 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   loginRoute,
   signupRoute,
-  clientDashboardRoute,
   adminDashboardRoute,
   createEventRoute,
   editEventRoute,
   eventRegsRoute,
+  clientDashboardRoute,
   developerRoute,
 ])
 

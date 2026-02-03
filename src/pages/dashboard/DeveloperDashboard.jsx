@@ -27,45 +27,62 @@ export default function DeveloperDashboard() {
 
   useEffect(() => {
     async function fetch() {
-      const { count: users } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
+      try {
+        const { count: users, error: usersError } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+        if (usersError) console.error('Error counting users:', usersError)
 
-      const { count: events } = await supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true })
+        const { count: events, error: eventsError } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+        if (eventsError) console.error('Error counting events:', eventsError)
 
-      const { count: regs } = await supabase
-        .from('registrations')
-        .select('*', { count: 'exact', head: true })
+        const { count: regs, error: regsError } = await supabase
+          .from('registrations')
+          .select('*', { count: 'exact', head: true })
+        if (regsError) console.error('Error counting registrations:', regsError)
 
-      const { count: pays } = await supabase
-        .from('payments')
-        .select('*', { count: 'exact', head: true })
+        const { count: pays, error: paysError } = await supabase
+          .from('payments')
+          .select('*', { count: 'exact', head: true })
+        if (paysError) console.error('Error counting payments:', paysError)
 
-      setStats({
-        users: users || 0,
-        events: events || 0,
-        registrations: regs || 0,
-        payments: pays || 0,
-      })
+        setStats({
+          users: users || 0,
+          events: events || 0,
+          registrations: regs || 0,
+          payments: pays || 0,
+        })
 
-      const { data: activity } = await supabase
-        .from('activity_logs')
-        .select('*, profiles!activity_logs_actor_id_fkey(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(10)
+        const { data: activity, error: activityError } = await supabase
+          .from('activity_logs')
+          .select('*, profiles!activity_logs_actor_id_fkey(full_name)')
+          .order('created_at', { ascending: false })
+          .limit(10)
+        if (activityError) {
+          console.error('Error fetching activity logs:', activityError)
+          setRecentActivity([])
+        } else {
+          setRecentActivity(activity || [])
+        }
 
-      setRecentActivity(activity || [])
-
-      const { data: usersList } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, role, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      setRecentUsers(usersList || [])
-      setLoading(false)
+        const { data: usersList, error: usersListError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, role, created_at')
+          .order('created_at', { ascending: false })
+          .limit(5)
+        if (usersListError) {
+          console.error('Error fetching recent users:', usersListError)
+          setRecentUsers([])
+        } else {
+          setRecentUsers(usersList || [])
+        }
+      } catch (err) {
+        console.error('Exception in DeveloperDashboard fetch:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     fetch()
   }, [])

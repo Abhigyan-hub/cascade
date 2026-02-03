@@ -13,36 +13,79 @@ const statusConfig = {
 }
 
 export default function ClientDashboard() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [registrations, setRegistrations] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!profile?.id) return
+    // Wait for auth to finish loading before attempting to fetch
+    if (authLoading) {
+      return
+    }
+
+    // If no profile after auth loads, still resolve loading (empty state is valid)
+    if (!profile?.id) {
+      console.log('No profile ID available - showing empty dashboard')
+      setRegistrations([])
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
 
     async function fetchRegistrations() {
-      const { data } = await supabase
-        .from('registrations')
-        .select(`
-          id,
-          status,
-          created_at,
-          events(id, name, event_date, fee_amount),
-          payments(status, amount_paise)
-        `)
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false })
+      try {
+        console.log('Fetching registrations for user:', profile.id)
+        const { data, error: queryError } = await supabase
+          .from('registrations')
+          .select(`
+            id,
+            status,
+            created_at,
+            events(id, name, event_date, fee_amount),
+            payments(status, amount_paise)
+          `)
+          .eq('user_id', profile.id)
+          .order('created_at', { ascending: false })
 
-      setRegistrations(data || [])
-      setLoading(false)
+        if (cancelled) return
+
+        if (queryError) {
+          console.error('Error fetching registrations:', queryError)
+          setError(queryError.message || 'Failed to load registrations')
+          setRegistrations([])
+        } else {
+          console.log('Registrations fetched:', data?.length || 0)
+          setRegistrations(data || [])
+          setError(null)
+        }
+      } catch (err) {
+        if (cancelled) return
+        console.error('Exception fetching registrations:', err)
+        setError(err.message || 'An error occurred')
+        setRegistrations([])
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
-    fetchRegistrations()
-  }, [profile?.id])
 
-  const upcoming = registrations.filter(
+    fetchRegistrations()
+
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.id, authLoading])
+
+  // Filter out registrations with null events (deleted events)
+  const validRegistrations = registrations.filter((r) => r.events !== null)
+  
+  const upcoming = validRegistrations.filter(
     (r) => r.events && new Date(r.events.event_date) >= new Date()
   )
-  const completed = registrations.filter(
+  const completed = validRegistrations.filter(
     (r) => r.events && new Date(r.events.event_date) < new Date()
   )
 
@@ -53,7 +96,13 @@ export default function ClientDashboard() {
         animate={{ opacity: 1, y: 0 }}
       >
         <h1 className="text-3xl font-bold text-white mb-2">My Dashboard</h1>
-        <p className="text-gray-500">Welcome back, {profile?.full_name}</p>
+        <p className="text-gray-500">Welcome back, {profile?.full_name || 'User'}</p>
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
 
         {loading ? (
           <div className="mt-8 space-y-4">
@@ -66,38 +115,47 @@ export default function ClientDashboard() {
           </div>
         ) : (
           <div className="mt-8 space-y-8">
-            <section>
-              <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-cascade-purple" />
-                Upcoming Events ({upcoming.length})
-              </h2>
-              {upcoming.length === 0 ? (
-                <div className="card p-8 text-center text-gray-500">
-                  No upcoming registrations
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {upcoming.map((reg) => (
-                    <RegistrationCard key={reg.id} registration={reg} />
-                  ))}
-                </div>
-              )}
-            </section>
+            {validRegistrations.length === 0 ? (
+              <div className="card p-12 text-center">
+                <p className="text-gray-500 mb-4">No registrations yet</p>
+                <p className="text-gray-600 text-sm">Register for events to see them here</p>
+              </div>
+            ) : (
+              <>
+                <section>
+                  <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-cascade-purple" />
+                    Upcoming Events ({upcoming.length})
+                  </h2>
+                  {upcoming.length === 0 ? (
+                    <div className="card p-8 text-center text-gray-500">
+                      No upcoming registrations
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {upcoming.map((reg) => (
+                        <RegistrationCard key={reg.id} registration={reg} />
+                      ))}
+                    </div>
+                  )}
+                </section>
 
-            <section>
-              <h2 className="text-xl font-semibold text-white mb-4">Completed Events ({completed.length})</h2>
-              {completed.length === 0 ? (
-                <div className="card p-8 text-center text-gray-500">
-                  No past registrations
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {completed.map((reg) => (
-                    <RegistrationCard key={reg.id} registration={reg} />
-                  ))}
-                </div>
-              )}
-            </section>
+                <section>
+                  <h2 className="text-xl font-semibold text-white mb-4">Completed Events ({completed.length})</h2>
+                  {completed.length === 0 ? (
+                    <div className="card p-8 text-center text-gray-500">
+                      No past registrations
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {completed.map((reg) => (
+                        <RegistrationCard key={reg.id} registration={reg} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
           </div>
         )}
       </motion.div>

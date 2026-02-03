@@ -1,6 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
-import { Calendar, LayoutDashboard, Shield, LogOut, Menu, X } from 'lucide-react'
+import { Calendar, Shield, LogOut, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../lib/authContext'
 
@@ -9,8 +9,13 @@ export default function Layout() {
   const { user, profile, signOut } = useAuth()
 
   const handleSignOut = async () => {
-    await signOut()
     setMobileMenuOpen(false)
+    // Don't await - signOut is now non-blocking
+    signOut().catch((err) => {
+      console.error('Sign out error (non-blocking):', err)
+      // Force navigation as fallback
+      window.location.href = '/login'
+    })
   }
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'developer'
@@ -41,13 +46,14 @@ export default function Layout() {
               </Link>
               {user ? (
                 <>
-                  <Link
-                    to="/dashboard"
-                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
-                  </Link>
+                  {profile?.role === 'client' && (
+                    <Link
+                      to="/dashboard"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -115,9 +121,11 @@ export default function Layout() {
                 </Link>
                 {user ? (
                   <>
-                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
-                      Dashboard
-                    </Link>
+                    {profile?.role === 'client' && (
+                      <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
+                        Dashboard
+                      </Link>
+                    )}
                     {isAdmin && (
                       <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
                         Admin

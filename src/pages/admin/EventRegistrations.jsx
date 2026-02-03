@@ -14,40 +14,108 @@ const statusConfig = {
 }
 
 export default function EventRegistrations() {
-  const { eventId } = useParams({ strict: false })
+  // Bind params to this exact route to avoid occasional undefined eventId
+  const { eventId } = useParams({ from: '/admin/events/$eventId/registrations' })
   const { profile } = useAuth()
   const [event, setEvent] = useState(null)
   const [registrations, setRegistrations] = useState([])
   const [loading, setLoading] = useState(true)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyUser, setHistoryUser] = useState(null)
+  const [historyRegs, setHistoryRegs] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   useEffect(() => {
     async function fetch() {
-      const { data: ev } = await supabase
-        .from('events')
-        .select('id, name')
-        .eq('id', eventId)
-        .single()
-      setEvent(ev)
+      try {
+        console.log('Fetching registrations for event:', eventId)
+        
+        const { data: ev, error: evError } = await supabase
+          .from('events')
+          .select('id, name')
+          .eq('id', eventId)
+          .single()
+        
+        if (evError) {
+          console.error('Error fetching event:', evError)
+          toast.error('Failed to load event details')
+        } else {
+          console.log('Event loaded:', ev?.name)
+          setEvent(ev)
+        }
 
-      const { data: regs } = await supabase
-        .from('registrations')
-        .select(`
-          id,
-          form_data,
-          status,
-          status_notes,
-          status_updated_at,
-          created_at,
-          profiles(id, full_name, email)
-        `)
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: false })
+        const { data: regs, error: regsError } = await supabase
+          .from('registrations')
+          .select(`
+            id,
+            form_data,
+            status,
+            status_notes,
+            status_updated_at,
+            created_at,
+            profiles!user_id(id, full_name, email)
+          `)
+          .eq('event_id', eventId)
+          .order('created_at', { ascending: false })
 
-      setRegistrations(regs || [])
-      setLoading(false)
+        if (regsError) {
+          console.error('Error fetching registrations:', regsError)
+          console.error('Error details:', {
+            message: regsError.message,
+            code: regsError.code,
+            details: regsError.details,
+            hint: regsError.hint
+          })
+          toast.error(`Failed to load registrations: ${regsError.message}`)
+          setRegistrations([])
+        } else {
+          console.log('Registrations loaded:', regs?.length || 0)
+          setRegistrations(regs || [])
+          if (regs && regs.length > 0) {
+            console.log('Sample registration:', regs[0])
+          }
+        }
+      } catch (err) {
+        console.error('Exception in EventRegistrations fetch:', err)
+        toast.error('An unexpected error occurred')
+        setRegistrations([])
+      } finally {
+        setLoading(false)
+      }
     }
     fetch()
   }, [eventId])
+
+  async function openHistory(user) {
+    if (!user?.id) return
+    setHistoryOpen(true)
+    setHistoryUser(user)
+    setHistoryLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('registrations')
+        .select(`
+          id,
+          status,
+          created_at,
+          events(id, name, event_date, fee_amount)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching user registration history:', error)
+        setHistoryRegs([])
+      } else {
+        setHistoryRegs(data || [])
+      }
+    } catch (err) {
+      console.error('Exception fetching user registration history:', err)
+      setHistoryRegs([])
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
 
   async function updateStatus(regId, status, notes = '') {
     const { error } = await supabase
@@ -127,6 +195,7 @@ export default function EventRegistrations() {
                       registration={reg}
                       onAccept={() => updateStatus(reg.id, 'accepted')}
                       onReject={() => updateStatus(reg.id, 'rejected')}
+                      onViewHistory={openHistory}
                     />
                   ))}
                 </div>
@@ -137,7 +206,12 @@ export default function EventRegistrations() {
                 <h2 className="text-lg font-semibold text-gray-400 mb-4">Resolved ({resolved.length})</h2>
                 <div className="space-y-4">
                   {resolved.map((reg) => (
-                    <RegistrationRow key={reg.id} registration={reg} readOnly />
+                    <RegistrationRow
+                      key={reg.id}
+                      registration={reg}
+                      readOnly
+                      onViewHistory={openHistory}
+                    />
                   ))}
                 </div>
               </section>
@@ -148,11 +222,61 @@ export default function EventRegistrations() {
           </div>
         )}
       </motion.div>
+
+      {historyOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card max-w-xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-cascade-border">
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  History for {historyUser?.full_name || 'Participant'}
+                </h2>
+                {historyUser?.email && (
+                  <p className="text-gray-500 text-sm">{historyUser.email}</p>
+                )}
+              </div>
+              <button
+                onClick={() => setHistoryOpen(false)}
+                className="text-gray-400 hover:text-white text-sm"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-3">
+              {historyLoading ? (
+                <p className="text-gray-500 text-sm">Loading history…</p>
+              ) : historyRegs.length === 0 ? (
+                <p className="text-gray-500 text-sm">No other registrations found.</p>
+              ) : (
+                historyRegs.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between text-sm">
+                    <div>
+                      <p className="text-white">
+                        {r.events?.name || 'Event'}
+                      </p>
+                      {r.events?.event_date && (
+                        <p className="text-gray-500">
+                          {format(new Date(r.events.event_date), 'MMM d, yyyy • h:mm a')}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-gray-400 capitalize">{r.status}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }
 
-function RegistrationRow({ registration, onAccept, onReject, readOnly }) {
+function RegistrationRow({ registration, onAccept, onReject, readOnly, onViewHistory }) {
   const config = statusConfig[registration.status] || statusConfig.pending
   const StatusIcon = config.icon
   const user = registration.profiles
@@ -189,22 +313,32 @@ function RegistrationRow({ registration, onAccept, onReject, readOnly }) {
             <StatusIcon className="w-4 h-4" />
             {config.label}
           </span>
-          {!readOnly && (
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            {!readOnly && (
+              <>
+                <button
+                  onClick={onAccept}
+                  className="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={onReject}
+                  className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                >
+                  Reject
+                </button>
+              </>
+            )}
+            {onViewHistory && user && (
               <button
-                onClick={onAccept}
-                className="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                onClick={() => onViewHistory(user)}
+                className="px-4 py-2 rounded-lg bg-cascade-purple/20 text-cascade-purple hover:bg-cascade-purple/30 transition-colors"
               >
-                Accept
+                History
               </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-              >
-                Reject
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

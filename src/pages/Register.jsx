@@ -109,12 +109,19 @@ export default function Register() {
     setLoading(true)
 
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from('registrations')
         .select('id')
         .eq('event_id', eventId)
         .eq('user_id', profile.id)
-        .single()
+        .maybeSingle()
+
+      if (existingError && existingError.code !== 'PGRST116') {
+        console.error('Error checking existing registration:', existingError)
+        toast.error('Error checking registration status')
+        setLoading(false)
+        return
+      }
 
       if (existing) {
         toast.error('You have already registered for this event.')
@@ -122,6 +129,7 @@ export default function Register() {
         return
       }
 
+      console.log('Inserting registration:', { eventId, userId: profile.id, formData })
       const { data: reg, error: regError } = await supabase
         .from('registrations')
         .insert({
@@ -134,10 +142,20 @@ export default function Register() {
         .single()
 
       if (regError) {
+        console.error('Registration insert error:', regError)
         toast.error(regError.message || 'Registration failed')
         setLoading(false)
         return
       }
+
+      if (!reg || !reg.id) {
+        console.error('Registration insert returned no data')
+        toast.error('Registration failed - no confirmation received')
+        setLoading(false)
+        return
+      }
+
+      console.log('Registration successful:', reg.id)
 
       const isPaid = event.fee_amount > 0
 

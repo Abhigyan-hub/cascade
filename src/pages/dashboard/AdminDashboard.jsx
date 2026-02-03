@@ -1,46 +1,94 @@
 import { useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
-import { Plus, Calendar, Users, Settings } from 'lucide-react'
+import { Plus, Calendar, Users, Settings, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useAuth } from '../../lib/authContext'
+import toast from 'react-hot-toast'
 
 export default function AdminDashboard() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [events, setEvents] = useState([])
   const [stats, setStats] = useState({ totalRegistrations: 0, pendingCount: 0 })
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState(null)
 
   useEffect(() => {
     if (!profile?.id) return
 
     async function fetch() {
-      const { data: created } = await supabase
-        .from('events')
-        .select('id, name, event_date, fee_amount, is_published, created_at')
-        .eq('created_by', profile.id)
-
-      const { data: adminRows } = await supabase
-        .from('event_admins')
-        .select('event_id')
-        .eq('admin_id', profile.id)
-
-      const adminIds = adminRows?.map((r) => r.event_id) || []
-      let adminEvents = []
-      if (adminIds.length > 0) {
-        const { data } = await supabase
+      try {
+        // Admins can see all events, so fetch all events they have access to
+        const { data: allEvents, error: eventsError } = await supabase
           .from('events')
           .select('id, name, event_date, fee_amount, is_published, created_at')
-          .in('id', adminIds)
-        adminEvents = data || []
+          .order('created_at', { ascending: false })
+
+        if (eventsError) {
+          console.error('Error fetching events:', eventsError)
+          setEvents([])
+        } else {
+          setEvents(allEvents || [])
+        }
+
+        const eventIds = (allEvents || []).map((e) => e.id)
+        if (eventIds.length > 0) {
+          const { count: total, error: totalError } = await supabase
+            .from('registrations')
+            .select('*', { count: 'exact', head: true })
+            .in('event_id', eventIds)
+          if (totalError) {
+            console.error('Error counting total registrations:', totalError)
+          }
+
+          const { count: pending, error: pendingError } = await supabase
+            .from('registrations')
+            .select('*', { count: 'exact', head: true })
+            .in('event_id', eventIds)
+            .eq('status', 'pending')
+          if (pendingError) {
+            console.error('Error counting pending registrations:', pendingError)
+          }
+
+          setStats({ totalRegistrations: total || 0, pendingCount: pending || 0 })
+        } else {
+          setStats({ totalRegistrations: 0, pendingCount: 0 })
+        }
+      } catch (err) {
+        console.error('Exception in AdminDashboard fetch:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  }, [profile?.id])
+
+  async function handleDeleteEvent(eventId, eventName) {
+    if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone and will also delete all registrations and related data.`)) {
+      return
+    }
+
+    setDeletingId(eventId)
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+
+      if (error) {
+        console.error('Error deleting event:', error)
+        toast.error(error.message || 'Failed to delete event')
+        setDeletingId(null)
+        return
       }
 
-      const merged = [...(created || []), ...adminEvents]
-      const unique = Array.from(new Map(merged.map((e) => [e.id, e])).values())
-      setEvents(unique)
-
-      const eventIds = unique.map((e) => e.id)
+      toast.success('Event deleted successfully')
+      setEvents((prev) => prev.filter((e) => e.id !== eventId))
+      
+      // Update stats
+      const eventIds = events.filter((e) => e.id !== eventId).map((e) => e.id)
       if (eventIds.length > 0) {
         const { count: total } = await supabase
           .from('registrations')
@@ -52,12 +100,16 @@ export default function AdminDashboard() {
           .in('event_id', eventIds)
           .eq('status', 'pending')
         setStats({ totalRegistrations: total || 0, pendingCount: pending || 0 })
+      } else {
+        setStats({ totalRegistrations: 0, pendingCount: 0 })
       }
-
-      setLoading(false)
+    } catch (err) {
+      console.error('Exception deleting event:', err)
+      toast.error('Failed to delete event')
+    } finally {
+      setDeletingId(null)
     }
-    fetch()
-  }, [profile?.id])
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -168,6 +220,15 @@ export default function AdminDashboard() {
                   >
                     Registrations
                   </Link>
+                  <button
+                    onClick={() => handleDeleteEvent(e.id, e.name)}
+                    disabled={deletingId === e.id}
+                    className="btn-secondary py-2 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title="Delete event"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {deletingId === e.id ? 'Deleting...' : 'Delete'}
+                  </button>
                 </div>
               </motion.div>
             ))}

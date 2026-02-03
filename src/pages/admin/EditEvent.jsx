@@ -24,9 +24,11 @@ export default function EditEvent() {
   const { profile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [loadingPage, setLoadingPage] = useState(true)
+  const [deleting, setDeleting] = useState(false)
   const [formFields, setFormFields] = useState([])
   const [existingImages, setExistingImages] = useState([])
   const [imageFiles, setImageFiles] = useState([])
+  const [eventName, setEventName] = useState('')
 
   const [form, setForm] = useState({
     name: '',
@@ -51,6 +53,7 @@ export default function EditEvent() {
         return
       }
 
+      setEventName(ev.name)
       setForm({
         name: ev.name,
         description: ev.description || '',
@@ -178,6 +181,34 @@ export default function EditEvent() {
       toast.error(err.message || 'Update failed')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone and will also delete all registrations, payments, and related data.`)) {
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+
+      if (error) {
+        console.error('Error deleting event:', error)
+        toast.error(error.message || 'Failed to delete event')
+        setDeleting(false)
+        return
+      }
+
+      toast.success('Event deleted successfully')
+      navigate({ to: '/admin' })
+    } catch (err) {
+      console.error('Exception deleting event:', err)
+      toast.error('Failed to delete event')
+      setDeleting(false)
     }
   }
 
@@ -379,6 +410,15 @@ export default function EditEvent() {
             </button>
             <button type="button" onClick={() => navigate({ to: '/admin' })} className="btn-secondary">
               Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting || loading}
+              className="btn-secondary text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              {deleting ? 'Deleting...' : 'Delete Event'}
             </button>
           </div>
         </form>

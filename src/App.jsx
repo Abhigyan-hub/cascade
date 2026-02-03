@@ -7,7 +7,6 @@ import EventDetail from './pages/EventDetail'
 import Register from './pages/Register'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
-import ClientDashboard from './pages/dashboard/ClientDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
 import DeveloperDashboard from './pages/dashboard/DeveloperDashboard'
 import CreateEvent from './pages/admin/CreateEvent'
@@ -103,16 +102,6 @@ export default function App() {
         />
         <Route path="login" element={user ? <Navigate to="/" replace /> : <Login />} />
         <Route path="signup" element={user ? <Navigate to="/" replace /> : <SignUp />} />
-
-        {/* Client Dashboard */}
-        <Route
-          path="dashboard"
-          element={
-            <ProtectedRoute user={user} profile={profile} requiredRole="client">
-              <ClientDashboard profile={profile} />
-            </ProtectedRoute>
-          }
-        />
 
         {/* Admin Routes */}
         <Route
