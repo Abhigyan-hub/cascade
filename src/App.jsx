@@ -21,15 +21,26 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
-      }
+    const timeoutId = setTimeout(() => {
       setLoading(false)
-    })
+    }, 5000)
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+        if (session?.user) {
+          return fetchProfile(session.user.id)
+        } else {
+          setProfile(null)
+        }
+      })
+      .catch((error) => {
+        console.error('Auth session error:', error)
+      })
+      .finally(() => {
+        clearTimeout(timeoutId)
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
@@ -42,16 +53,28 @@ export default function App() {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeoutId)
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      
+      if (error) {
+        console.error('Profile fetch error:', error)
+        return
+      }
+      setProfile(data)
+    } catch (error) {
+      console.error('Profile fetch failed:', error)
+    }
   }
 
   if (loading) {
@@ -73,7 +96,7 @@ export default function App() {
         <Route
           path="events/:eventId/register"
           element={
-            <ProtectedRoute user={user} requiredRole="client">
+            <ProtectedRoute user={user} profile={profile} requiredRole="client">
               <Register profile={profile} />
             </ProtectedRoute>
           }
@@ -85,7 +108,7 @@ export default function App() {
         <Route
           path="dashboard"
           element={
-            <ProtectedRoute user={user} requiredRole="client">
+            <ProtectedRoute user={user} profile={profile} requiredRole="client">
               <ClientDashboard profile={profile} />
             </ProtectedRoute>
           }
@@ -95,7 +118,7 @@ export default function App() {
         <Route
           path="admin"
           element={
-            <ProtectedRoute user={user} requiredRole={['admin', 'developer']}>
+            <ProtectedRoute user={user} profile={profile} requiredRole={['admin', 'developer']}>
               <AdminDashboard profile={profile} />
             </ProtectedRoute>
           }
@@ -103,7 +126,7 @@ export default function App() {
         <Route
           path="admin/events/new"
           element={
-            <ProtectedRoute user={user} requiredRole={['admin', 'developer']}>
+            <ProtectedRoute user={user} profile={profile} requiredRole={['admin', 'developer']}>
               <CreateEvent profile={profile} />
             </ProtectedRoute>
           }
@@ -111,7 +134,7 @@ export default function App() {
         <Route
           path="admin/events/:eventId/edit"
           element={
-            <ProtectedRoute user={user} requiredRole={['admin', 'developer']}>
+            <ProtectedRoute user={user} profile={profile} requiredRole={['admin', 'developer']}>
               <EditEvent profile={profile} />
             </ProtectedRoute>
           }
@@ -119,7 +142,7 @@ export default function App() {
         <Route
           path="admin/events/:eventId/registrations"
           element={
-            <ProtectedRoute user={user} requiredRole={['admin', 'developer']}>
+            <ProtectedRoute user={user} profile={profile} requiredRole={['admin', 'developer']}>
               <EventRegistrations profile={profile} />
             </ProtectedRoute>
           }
@@ -129,7 +152,7 @@ export default function App() {
         <Route
           path="developer"
           element={
-            <ProtectedRoute user={user} requiredRole="developer">
+            <ProtectedRoute user={user} profile={profile} requiredRole="developer">
               <DeveloperDashboard profile={profile} />
             </ProtectedRoute>
           }

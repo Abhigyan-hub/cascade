@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { Calendar, CheckCircle, XCircle, Clock, IndianRupee } from 'lucide-react'
 import { format } from 'date-fns'
+import { useAuth } from '../../lib/authContext'
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'text-cascade-gold', icon: Clock },
@@ -11,7 +12,8 @@ const statusConfig = {
   rejected: { label: 'Rejected', color: 'text-red-400', icon: XCircle },
 }
 
-export default function ClientDashboard({ profile }) {
+export default function ClientDashboard() {
+  const { profile } = useAuth()
   const [registrations, setRegistrations] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -122,7 +124,8 @@ function RegistrationCard({ registration }) {
     >
       <div>
         <Link
-          to={`/events/${event.id}`}
+          to="/events/$eventId"
+          params={{ eventId: event.id }}
           className="font-semibold text-white hover:text-cascade-purple-light transition-colors"
         >
           {event.name}

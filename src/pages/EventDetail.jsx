@@ -1,14 +1,15 @@
-import { useParams, Link } from 'react-router-dom'
+import { Link, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import EventCarousel from '../components/EventCarousel'
 import { Calendar, MapPin, User, IndianRupee } from 'lucide-react'
 import { format } from 'date-fns'
-import toast from 'react-hot-toast'
+import { useAuth } from '../lib/authContext'
 
-export default function EventDetail({ user, profile }) {
-  const { eventId } = useParams()
+export default function EventDetail() {
+  const { eventId } = useParams({ strict: false })
+  const { user } = useAuth()
   const [event, setEvent] = useState(null)
   const [images, setImages] = useState([])
   const [organizer, setOrganizer] = useState(null)
@@ -17,55 +18,67 @@ export default function EventDetail({ user, profile }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetch() {
-      const { data: ev, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .eq('is_published', true)
-        .single()
-
-      if (error || !ev) {
-        setLoading(false)
-        return
-      }
-
-      setEvent(ev)
-
-      const { data: imgs } = await supabase
-        .from('event_images')
-        .select('storage_path, sort_order')
-        .eq('event_id', eventId)
-        .order('sort_order')
-      setImages(imgs || [])
-
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', ev.created_by)
-        .single()
-      setOrganizer(prof)
-
-      const { data: fields } = await supabase
-        .from('event_form_fields')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('sort_order')
-      setFormFields(fields || [])
-
-      if (user) {
-        const { data: reg } = await supabase
-          .from('registrations')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('user_id', user.id)
-          .single()
-        setAlreadyRegistered(!!reg)
-      }
-
+    const timeoutId = setTimeout(() => {
       setLoading(false)
+    }, 8000)
+
+    async function fetch() {
+      try {
+        const { data: ev, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .eq('is_published', true)
+          .single()
+
+        if (error || !ev) {
+          console.error('Event fetch error:', error)
+          setLoading(false)
+          return
+        }
+
+        setEvent(ev)
+
+        const { data: imgs } = await supabase
+          .from('event_images')
+          .select('storage_path, sort_order')
+          .eq('event_id', eventId)
+          .order('sort_order')
+        setImages(imgs || [])
+
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', ev.created_by)
+          .single()
+        setOrganizer(prof)
+
+        const { data: fields } = await supabase
+          .from('event_form_fields')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('sort_order')
+        setFormFields(fields || [])
+
+        if (user) {
+          const { data: reg } = await supabase
+            .from('registrations')
+            .select('id')
+            .eq('event_id', eventId)
+            .eq('user_id', user.id)
+            .single()
+          setAlreadyRegistered(!!reg)
+        }
+      } catch (error) {
+        console.error('Event detail fetch failed:', error)
+      } finally {
+        clearTimeout(timeoutId)
+        setLoading(false)
+      }
     }
+    
     fetch()
+    return () => clearTimeout(timeoutId)
   }, [eventId, user])
 
   if (loading) {
@@ -156,7 +169,7 @@ export default function EventDetail({ user, profile }) {
           ) : (
             <Link
               to="/login"
-              state={{ from: `/events/${eventId}/register` }}
+              search={{ from: `/events/${eventId}/register` }}
               className="btn-primary inline-flex items-center gap-2"
             >
               Login to Register

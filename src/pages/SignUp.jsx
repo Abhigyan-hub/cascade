@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -27,7 +27,7 @@ export default function SignUp() {
       return
     }
     toast.success('Account created! Please check your email to confirm.')
-    navigate('/login')
+    navigate({ to: '/login' })
   }
 
   return (

@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { EVENT_IMAGES_BUCKET } from '../../lib/supabase'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '../../lib/authContext'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -17,8 +18,9 @@ const FIELD_TYPES = [
   { value: 'date', label: 'Date' },
 ]
 
-export default function CreateEvent({ profile }) {
+export default function CreateEvent() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formFields, setFormFields] = useState([])
   const [images, setImages] = useState([])
@@ -132,7 +134,7 @@ export default function CreateEvent({ profile }) {
       }
 
       toast.success('Event created successfully!')
-      navigate('/admin')
+      navigate({ to: '/admin' })
     } catch (err) {
       toast.error(err.message || 'Failed to create event')
     } finally {
@@ -334,7 +336,7 @@ export default function CreateEvent({ profile }) {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/admin')}
+              onClick={() => navigate({ to: '/admin' })}
               className="btn-secondary"
             >
               Cancel

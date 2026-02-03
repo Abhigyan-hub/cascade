@@ -1,10 +1,11 @@
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { createRazorpayOrder, openRazorpayCheckout, verifyRazorpayPayment } from '../lib/razorpay'
 import toast from 'react-hot-toast'
+import { useAuth } from '../lib/authContext'
 
 function DynamicFormField({ field, register, errors }) {
   const { field_key, field_label, field_type, options, is_required } = field
@@ -66,9 +67,10 @@ function DynamicFormField({ field, register, errors }) {
   }
 }
 
-export default function Register({ profile }) {
-  const { eventId } = useParams()
+export default function Register() {
+  const { eventId } = useParams({ strict: false })
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const [event, setEvent] = useState(null)
   const [formFields, setFormFields] = useState([])
   const [loading, setLoading] = useState(false)
@@ -199,7 +201,7 @@ export default function Register({ profile }) {
       }
 
       toast.success(isPaid ? 'Registration and payment successful!' : 'Registration successful!')
-      navigate('/dashboard')
+      navigate({ to: '/dashboard' })
     } catch (err) {
       toast.error(err.message || 'Something went wrong')
     } finally {

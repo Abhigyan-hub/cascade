@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { Plus, Calendar, Users, Settings } from 'lucide-react'
 import { format } from 'date-fns'
+import { useAuth } from '../../lib/authContext'
 
-export default function AdminDashboard({ profile }) {
+export default function AdminDashboard() {
+  const { profile } = useAuth()
   const [events, setEvents] = useState([])
   const [stats, setStats] = useState({ totalRegistrations: 0, pendingCount: 0 })
   const [loading, setLoading] = useState(true)
@@ -134,7 +136,8 @@ export default function AdminDashboard({ profile }) {
               >
                 <div>
                   <Link
-                    to={`/events/${e.id}`}
+                    to="/events/$eventId"
+                    params={{ eventId: e.id }}
                     className="font-semibold text-white hover:text-cascade-purple-light"
                   >
                     {e.name}
@@ -152,13 +155,15 @@ export default function AdminDashboard({ profile }) {
                 </div>
                 <div className="flex gap-2">
                   <Link
-                    to={`/admin/events/${e.id}/edit`}
+                    to="/admin/events/$eventId/edit"
+                    params={{ eventId: e.id }}
                     className="btn-secondary py-2"
                   >
                     Edit
                   </Link>
                   <Link
-                    to={`/admin/events/${e.id}/registrations`}
+                    to="/admin/events/$eventId/registrations"
+                    params={{ eventId: e.id }}
                     className="btn-primary py-2"
                   >
                     Registrations

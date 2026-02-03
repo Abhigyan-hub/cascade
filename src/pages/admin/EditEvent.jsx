@@ -1,10 +1,11 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { EVENT_IMAGES_BUCKET } from '../../lib/supabase'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '../../lib/authContext'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -17,9 +18,10 @@ const FIELD_TYPES = [
   { value: 'date', label: 'Date' },
 ]
 
-export default function EditEvent({ profile }) {
-  const { eventId } = useParams()
+export default function EditEvent() {
+  const { eventId } = useParams({ strict: false })
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [loadingPage, setLoadingPage] = useState(true)
   const [formFields, setFormFields] = useState([])
@@ -171,7 +173,7 @@ export default function EditEvent({ profile }) {
       }
 
       toast.success('Event updated!')
-      navigate('/admin')
+      navigate({ to: '/admin' })
     } catch (err) {
       toast.error(err.message || 'Update failed')
     } finally {
@@ -375,7 +377,7 @@ export default function EditEvent({ profile }) {
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
-            <button type="button" onClick={() => navigate('/admin')} className="btn-secondary">
+            <button type="button" onClick={() => navigate({ to: '/admin' })} className="btn-secondary">
               Cancel
             </button>
           </div>

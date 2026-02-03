@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { Calendar, User, IndianRupee } from 'lucide-react'
 import { format } from 'date-fns'
@@ -50,7 +50,8 @@ export default function EventCard({ event, images = [], organizer }) {
           </div>
         )}
         <Link
-          to={`/events/${event.id}`}
+          to="/events/$eventId"
+          params={{ eventId: event.id }}
           className="btn-primary inline-flex items-center gap-2 w-full justify-center py-2.5"
         >
           View Details

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -9,8 +9,8 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const location = useLocation()
-  const from = location.state?.from || '/'
+  const search = useSearch({ strict: false })
+  const from = typeof search?.from === 'string' ? search.from : '/'
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -22,7 +22,7 @@ export default function Login() {
       return
     }
     toast.success('Welcome back!')
-    navigate(from, { replace: true })
+    navigate({ to: from, replace: true })
   }
 
   return (

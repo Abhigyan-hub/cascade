@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import {
@@ -11,8 +11,10 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { useAuth } from '../../lib/authContext'
 
-export default function DeveloperDashboard({ profile }) {
+export default function DeveloperDashboard() {
+  const { profile } = useAuth()
   const [stats, setStats] = useState({
     users: 0,
     events: 0,
@@ -147,7 +149,7 @@ export default function DeveloperDashboard({ profile }) {
                 {recentUsers.map((u) => (
                   <Link
                     key={u.id}
-                    to={`/developer/users/${u.id}`}
+                    to="/developer"
                     className="flex items-center justify-between p-3 rounded-lg bg-cascade-dark hover:bg-cascade-surface-hover transition-colors"
                   >
                     <div>

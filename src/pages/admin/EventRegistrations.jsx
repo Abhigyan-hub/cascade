@@ -1,11 +1,11 @@
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
-import { Link } from 'react-router-dom'
 import { CheckCircle, XCircle, Clock, ChevronLeft, User } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
+import { useAuth } from '../../lib/authContext'
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'text-cascade-gold', icon: Clock },
@@ -13,8 +13,9 @@ const statusConfig = {
   rejected: { label: 'Rejected', color: 'text-red-400', icon: XCircle },
 }
 
-export default function EventRegistrations({ profile }) {
-  const { eventId } = useParams()
+export default function EventRegistrations() {
+  const { eventId } = useParams({ strict: false })
+  const { profile } = useAuth()
   const [event, setEvent] = useState(null)
   const [registrations, setRegistrations] = useState([])
   const [loading, setLoading] = useState(true)

@@ -1,15 +1,15 @@
-import { Outlet } from 'react-router-dom'
-import { Link } from 'react-router-dom'
+import { Link, Outlet } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { Calendar, LayoutDashboard, Shield, LogOut, Menu, X } from 'lucide-react'
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/authContext'
 
-export default function Layout({ user, profile }) {
+export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, profile, signOut } = useAuth()
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    await signOut()
     setMobileMenuOpen(false)
   }
 

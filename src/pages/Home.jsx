@@ -8,23 +8,37 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchEvents() {
-      const { data, error } = await supabase
-        .from('events')
-        .select(`
-          *,
-          event_images(storage_path, sort_order),
-          profiles!events_created_by_fkey(full_name)
-        `)
-        .eq('is_published', true)
-        .order('event_date', { ascending: true })
-
-      if (!error) {
-        setEvents(data || [])
-      }
+    const timeoutId = setTimeout(() => {
       setLoading(false)
+    }, 10000)
+
+    async function fetchEvents() {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select(`
+            *,
+            event_images(storage_path, sort_order),
+            profiles!events_created_by_fkey(full_name)
+          `)
+          .eq('is_published', true)
+          .order('event_date', { ascending: true })
+
+        if (!error) {
+          setEvents(data || [])
+        } else {
+          console.error('Events fetch error:', error)
+        }
+      } catch (error) {
+        console.error('Events fetch failed:', error)
+      } finally {
+        clearTimeout(timeoutId)
+        setLoading(false)
+      }
     }
+    
     fetchEvents()
+    return () => clearTimeout(timeoutId)
   }, [])
 
   return (
