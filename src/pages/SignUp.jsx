@@ -14,20 +14,74 @@ export default function SignUp() {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, role: 'client' },
-      },
-    })
-    setLoading(false)
-    if (error) {
-      toast.error(error.message)
-      return
+    
+    try {
+      // Add timeout to prevent hanging
+      const signUpPromise = supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName, role: 'client' },
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      })
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign up request timed out')), 10000)
+      )
+      
+      const { data, error } = await Promise.race([signUpPromise, timeoutPromise])
+      
+      if (error) {
+        // Handle specific error cases
+        if (error.message?.includes('rate limit') || error.message?.includes('email rate limit')) {
+          toast.error(
+            'Email sending rate limit exceeded. Your account may have been created. Please try logging in, or wait a few minutes and try again.',
+            { duration: 8000 }
+          )
+          // Still navigate to login - account might be created
+          setTimeout(() => navigate({ to: '/login' }), 2000)
+          return
+        }
+        
+        if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
+          toast.error('An account with this email already exists. Please sign in instead.')
+          navigate({ to: '/login' })
+          return
+        }
+        
+        toast.error(error.message || 'Sign up failed. Please try again.')
+        return
+      }
+      
+      // Success - account created (email may or may not have been sent)
+      if (data?.user) {
+        toast.success(
+          'Account created! ' + 
+          (data.user.email_confirmed_at 
+            ? 'You can sign in now.' 
+            : 'Please check your email to confirm, or try signing in if email confirmation is disabled.'),
+          { duration: 6000 }
+        )
+        navigate({ to: '/login' })
+      } else {
+        toast.success('Account creation in progress. Please try signing in.')
+        navigate({ to: '/login' })
+      }
+    } catch (err) {
+      console.error('Sign up error:', err)
+      if (err.message?.includes('timeout')) {
+        toast.error(
+          'Request timed out. Your account may have been created. Please try signing in.',
+          { duration: 6000 }
+        )
+        navigate({ to: '/login' })
+      } else {
+        toast.error(err.message || 'An error occurred. Please try again.')
+      }
+    } finally {
+      setLoading(false)
     }
-    toast.success('Account created! Please check your email to confirm.')
-    navigate({ to: '/login' })
   }
 
   return (

@@ -15,14 +15,59 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) {
-      toast.error(error.message)
-      return
+    
+    try {
+      // Add timeout to prevent hanging
+      const signInPromise = supabase.auth.signInWithPassword({ email, password })
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign in request timed out')), 10000)
+      )
+      
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise])
+      
+      if (error) {
+        // Handle specific error cases
+        if (error.message?.includes('rate limit')) {
+          toast.error(
+            'Too many login attempts. Please wait a few minutes and try again.',
+            { duration: 6000 }
+          )
+          return
+        }
+        
+        if (error.message?.includes('Invalid login credentials')) {
+          toast.error('Invalid email or password. Please check and try again.')
+          return
+        }
+        
+        if (error.message?.includes('Email not confirmed')) {
+          toast.error(
+            'Please confirm your email first. Check your inbox or try signing in anyway if confirmation is disabled.',
+            { duration: 8000 }
+          )
+          // Still try to navigate - some setups allow login without confirmation
+          return
+        }
+        
+        toast.error(error.message || 'Sign in failed. Please try again.')
+        return
+      }
+      
+      // Success
+      if (data?.user) {
+        toast.success('Welcome back!')
+        navigate({ to: from, replace: true })
+      }
+    } catch (err) {
+      console.error('Sign in error:', err)
+      if (err.message?.includes('timeout')) {
+        toast.error('Request timed out. Please check your connection and try again.')
+      } else {
+        toast.error(err.message || 'An error occurred. Please try again.')
+      }
+    } finally {
+      setLoading(false)
     }
-    toast.success('Welcome back!')
-    navigate({ to: from, replace: true })
   }
 
   return (
