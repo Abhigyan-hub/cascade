@@ -149,10 +149,10 @@ const developerRoute = createRoute({
 const paymentRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/payment',
-  validateSearch: (search: Record<string, unknown>) => {
+  validateSearch: (search) => {
     return {
-      registration_id: (search.registration_id as string) || '',
-      event_id: (search.event_id as string) || '',
+      registration_id: search?.registration_id || '',
+      event_id: search?.event_id || '',
     }
   },
   component: function PaymentPage() {
