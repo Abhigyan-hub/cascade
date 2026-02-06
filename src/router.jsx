@@ -11,6 +11,7 @@ import DeveloperDashboard from './pages/dashboard/DeveloperDashboard'
 import CreateEvent from './pages/admin/CreateEvent'
 import EditEvent from './pages/admin/EditEvent'
 import EventRegistrations from './pages/admin/EventRegistrations'
+import Payment from './pages/Payment'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './lib/authContext'
 
@@ -145,6 +146,24 @@ const developerRoute = createRoute({
   },
 })
 
+const paymentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/payment',
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      registration_id: (search.registration_id as string) || '',
+      event_id: (search.event_id as string) || '',
+    }
+  },
+  component: function PaymentPage() {
+    return (
+      <ProtectedRoute requiredRole="client">
+        <Payment />
+      </ProtectedRoute>
+    )
+  },
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   eventDetailRoute,
@@ -157,6 +176,7 @@ const routeTree = rootRoute.addChildren([
   eventRegsRoute,
   clientDashboardRoute,
   developerRoute,
+  paymentRoute,
 ])
 
 export const router = createRouter({ routeTree })

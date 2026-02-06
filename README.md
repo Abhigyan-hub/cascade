@@ -83,7 +83,13 @@ vercel dev
 vercel
 ```
 
-Add all env vars in Vercel project settings. Set `VITE_API_URL` to your Vercel deployment URL if the API is on a different domain.
+Add all env vars in Vercel project settings. 
+
+**About VITE_API_URL:**
+- **Leave it empty** if your frontend and API are on the same Vercel deployment (most common case)
+- **Only set it** if your API serverless functions are on a completely different domain
+- If empty, the app will automatically use `window.location.origin` (current domain)
+- Example: `VITE_API_URL=https://your-api-domain.com` (only if different from frontend)
 
 ## Folder Structure
 

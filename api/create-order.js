@@ -75,8 +75,27 @@ export default async function handler(req, res) {
     })
   } catch (error) {
     console.error('Razorpay order creation error:', error)
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to create payment order'
+    if (error.message?.includes('Invalid key') || error.message?.includes('authentication')) {
+      errorMessage = 'Invalid Razorpay API keys. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Vercel environment variables.'
+    } else if (error.message?.includes('Network') || error.message?.includes('ECONNREFUSED')) {
+      errorMessage = 'Network error connecting to Razorpay. Please check your internet connection and try again.'
+    } else if (error.message?.includes('timeout')) {
+      errorMessage = 'Request to Razorpay timed out. Please try again.'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
     return res.status(500).json({
-      message: error.message || 'Failed to create order',
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? {
+        hasKeyId: !!keyId,
+        hasKeySecret: !!keySecret,
+        errorType: error.constructor?.name,
+      } : undefined,
     })
   }
 }

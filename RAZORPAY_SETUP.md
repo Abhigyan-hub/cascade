@@ -48,6 +48,12 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Supabase Service Role Key (for backend API routes)
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# API URL (Optional - only if API is on different domain)
+# Leave empty if frontend and API are on same Vercel deployment
+# Only set if API is on completely different domain
+# Example: VITE_API_URL=https://your-api-domain.com
+VITE_API_URL=
 ```
 
 ### For Vercel Deployment:
@@ -61,6 +67,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
    - `RAZORPAY_WEBHOOK_SECRET` (for webhooks)
    - `VITE_SUPABASE_URL` (if not already set)
    - `SUPABASE_SERVICE_ROLE_KEY` (if not already set)
+   - `VITE_API_URL` (optional - only if API is on different domain, leave empty otherwise)
 
 **Important:** 
 - Variables starting with `VITE_` are exposed to the frontend
@@ -110,9 +117,24 @@ Webhooks allow Razorpay to notify your server about payment status changes.
 ## Troubleshooting
 
 ### "Payment gateway not configured" Error:
-- Check that `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are set in environment variables
+- Check that `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are set in Vercel environment variables
 - Make sure you're using the correct keys (test vs live)
-- Restart your dev server after adding `.env` variables
+- Restart your dev server after adding `.env.local` variables
+- For Vercel: Make sure variables are set for the correct environment (Production/Preview/Development)
+
+### "Failed to create order" Error:
+- Check that `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are correctly set in Vercel
+- Verify the API keys are valid in Razorpay Dashboard
+- Check browser console for detailed error messages
+- If using `VITE_API_URL`, ensure it points to the correct domain where your API is hosted
+- **Most common issue**: If frontend and API are on same Vercel deployment, leave `VITE_API_URL` empty
+
+### About VITE_API_URL:
+- **When to leave empty**: If your frontend and API serverless functions are on the same Vercel deployment (most common)
+- **When to set it**: Only if your API is on a completely different domain/server
+- **How it works**: If empty, the app uses `window.location.origin` automatically
+- **Example**: If your app is at `https://cascade.vercel.app` and API is on same domain, leave empty
+- **If different**: Set `VITE_API_URL=https://api.yourdomain.com` (only if truly different domain)
 
 ### Payment Not Processing:
 - Check browser console for errors

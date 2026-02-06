@@ -256,34 +256,26 @@ export default function Register() {
 
           const { orderId } = await createOrderRes.json()
 
-          const paymentResponse = await openRazorpayCheckout({
-            orderId,
-            amount: event.fee_amount,
-            name: 'CASCADE Events',
-            description: event.name,
-            email: profile.email,
-          })
-
-          const verifyRes = await fetch(`${apiBase}/api/verify-payment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          // Navigate to payment page instead of opening popup
+          setLoading(false)
+          navigate({ 
+            to: '/payment',
+            search: {
               registration_id: reg.id,
-              razorpay_payment_id: paymentResponse.razorpay_payment_id,
-              razorpay_order_id: paymentResponse.razorpay_order_id,
-              razorpay_signature: paymentResponse.razorpay_signature,
-            }),
+              event_id: eventId,
+            }
           })
-
-          if (!verifyRes.ok) {
-            toast.error('Payment verification failed. Please contact support.')
-            setLoading(false)
-            return
-          }
+          return
+        } else {
+          // Payment record creation failed
+          toast.error('Failed to create payment record. Please try again.')
+          setLoading(false)
+          return
         }
       }
 
-      toast.success(isPaid ? 'Registration and payment successful!' : 'Registration successful!')
+      // For free events, just show success
+      toast.success('Registration successful!')
       navigate({ to: '/dashboard' })
     } catch (err) {
       toast.error(err.message || 'Something went wrong')
