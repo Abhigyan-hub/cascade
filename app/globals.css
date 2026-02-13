@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 11 11 14;
+    --foreground: 241 241 241;
+    --card: 26 26 30;
+    --card-foreground: 241 241 241;
+    --primary: 123 44 191;
+    --primary-foreground: 241 241 241;
+    --secondary: 157 78 221;
+    --secondary-foreground: 241 241 241;
+    --accent: 245 197 66;
+    --accent-foreground: 11 11 14;
+    --destructive: 177 18 38;
+    --destructive-foreground: 241 241 241;
+    --muted: 42 42 46;
+    --muted-foreground: 161 161 170;
+    --border: 42 42 46;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+.gradient-purple {
+  background: linear-gradient(135deg, #7B2CBF 0%, #9D4EDD 100%);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #7B2CBF 0%, #9D4EDD 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
