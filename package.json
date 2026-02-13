@@ -9,6 +9,7 @@
     "lint": "echo 'Linting skipped - use IDE or run: npx eslint .'"
   },
   "dependencies": {
+<<<<<<< HEAD
     "@hookform/resolvers": "^3.3.3",
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/auth-helpers-react": "^0.4.2",
@@ -37,5 +38,24 @@
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.3.3"
+=======
+    "@supabase/supabase-js": "^2.45.0",
+    "@tanstack/react-router": "^1.121.20",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^11.11.0",
+    "lucide-react": "^0.460.0",
+    "razorpay": "^2.9.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.0",
+    "react-hot-toast": "^2.4.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "vite": "^7.3.1"
+>>>>>>> 1845322e70ebf88b2339b048efa29f4d0eaa0608
   }
 }
