@@ -12,6 +12,7 @@ import CreateEvent from './pages/admin/CreateEvent'
 import EditEvent from './pages/admin/EditEvent'
 import EventRegistrations from './pages/admin/EventRegistrations'
 import Payment from './pages/Payment'
+import PaymentCallback from './pages/PaymentCallback'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './lib/authContext'
 
@@ -164,6 +165,12 @@ const paymentRoute = createRoute({
   },
 })
 
+const paymentCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/payment/callback',
+  component: PaymentCallback,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   eventDetailRoute,
@@ -177,6 +184,7 @@ const routeTree = rootRoute.addChildren([
   clientDashboardRoute,
   developerRoute,
   paymentRoute,
+  paymentCallbackRoute,
 ])
 
 export const router = createRouter({ routeTree })

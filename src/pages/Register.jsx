@@ -2,8 +2,8 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { supabase } from '../lib/supabase'
-import { createRazorpayOrder, openRazorpayCheckout, verifyRazorpayPayment } from '../lib/razorpay'
+import { api } from '../lib/api'
+import { createRazorpayOrder } from '../lib/razorpay'
 import toast from 'react-hot-toast'
 import { useAuth } from '../lib/authContext'
 
@@ -103,26 +103,15 @@ export default function Register() {
 
   useEffect(() => {
     async function fetch() {
-      const { data: ev, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .eq('is_published', true)
-        .single()
-
-      if (error || !ev) {
+      try {
+        const ev = await api(`/api/events/${eventId}`)
+        setEvent(ev)
+        setFormFields(ev.form_fields || [])
+      } catch {
+        setEvent(null)
+      } finally {
         setLoadingPage(false)
-        return
       }
-      setEvent(ev)
-
-      const { data: fields } = await supabase
-        .from('event_form_fields')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('sort_order')
-      setFormFields(fields || [])
-      setLoadingPage(false)
     }
     fetch()
   }, [eventId])
@@ -166,115 +155,30 @@ export default function Register() {
     setLoading(true)
 
     try {
-      const { data: existing, error: existingError } = await supabase
-        .from('registrations')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('user_id', profile.id)
-        .maybeSingle()
-
-      if (existingError && existingError.code !== 'PGRST116') {
-        console.error('Error checking existing registration:', existingError)
-        toast.error('Error checking registration status')
-        setLoading(false)
-        return
-      }
-
-      if (existing) {
-        toast.error('You have already registered for this event.')
-        setLoading(false)
-        return
-      }
-
-      console.log('Inserting registration:', { eventId, userId: profile.id, formData })
-      const { data: reg, error: regError } = await supabase
-        .from('registrations')
-        .insert({
-          event_id: eventId,
-          user_id: profile.id,
-          form_data: formData,
-          status: 'pending',
-        })
-        .select('id')
-        .single()
-
-      if (regError) {
-        console.error('Registration insert error:', regError)
-        toast.error(regError.message || 'Registration failed')
-        setLoading(false)
-        return
-      }
-
-      if (!reg || !reg.id) {
-        console.error('Registration insert returned no data')
-        toast.error('Registration failed - no confirmation received')
-        setLoading(false)
-        return
-      }
-
-      console.log('Registration successful:', reg.id)
+      const { registration } = await api('/api/registrations', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: eventId, form_data: formData }),
+      })
 
       if (isPaid) {
-
-        const { data: payInsert } = await supabase
-          .from('payments')
-          .insert({
-            registration_id: reg.id,
-            amount_paise: event.fee_amount,
-            status: 'pending',
+        try {
+          await createRazorpayOrder(registration.id, event.fee_amount)
+          toast.success('Payment order created. Redirecting to payment page...')
+        } catch (err) {
+          toast.error(err.message || 'Failed to create payment order. You can retry on the payment page.', {
+            duration: 8000,
           })
-          .select('id')
-          .single()
-
-        if (payInsert) {
-          const apiBase = import.meta.env.VITE_API_URL || window.location.origin
-          const createOrderRes = await fetch(`${apiBase}/api/create-order`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              registration_id: reg.id,
-              amount: event.fee_amount,
-              currency: 'INR',
-            }),
-          })
-
-          if (!createOrderRes.ok) {
-            const errData = await createOrderRes.json().catch(() => ({}))
-            const errorMsg = errData.message || 'Could not create payment order'
-            
-            if (errorMsg.includes('not configured') || errorMsg.includes('gateway')) {
-              toast.error(
-                'Payment gateway not configured on backend. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Vercel environment variables. See RAZORPAY_SETUP.md for instructions.',
-                { duration: 10000 }
-              )
-            } else {
-              toast.error(errorMsg)
-            }
-            setLoading(false)
-            return
-          }
-
-          const { orderId } = await createOrderRes.json()
-
-          // Navigate to payment page instead of opening popup
-          setLoading(false)
-          navigate({ 
-            to: '/payment',
-            search: {
-              registration_id: reg.id,
-              event_id: eventId,
-            }
-          })
-          return
-        } else {
-          // Payment record creation failed
-          toast.error('Failed to create payment record. Please try again.')
-          setLoading(false)
-          return
         }
+        navigate({
+          to: '/payment',
+          search: {
+            registration_id: registration.id,
+            event_id: eventId,
+          },
+        })
+        return
       }
 
-      // For free events, just show success
       toast.success('Registration successful!')
       navigate({ to: '/dashboard' })
     } catch (err) {

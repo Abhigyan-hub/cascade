@@ -1,7 +1,7 @@
 import { Link, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
 import EventCarousel from '../components/EventCarousel'
 import { Calendar, MapPin, User, IndianRupee } from 'lucide-react'
 import { format } from 'date-fns'
@@ -27,63 +27,18 @@ export default function EventDetail() {
 
     async function fetch() {
       try {
-        const { data: ev, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', eventId)
-          .eq('is_published', true)
-          .single()
-
+        const ev = await api(`/api/events/${eventId}`)
         if (cancelled) return
-
-        if (error || !ev) {
-          console.error('Event fetch error:', error)
+        if (!ev) {
           setLoading(false)
           return
         }
 
         setEvent(ev)
-
-        // Fetch images, organizer, and fields in parallel
-        const [imgsResult, profResult, fieldsResult] = await Promise.all([
-          supabase
-            .from('event_images')
-            .select('storage_path, sort_order')
-            .eq('event_id', eventId)
-            .order('sort_order'),
-          supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', ev.created_by)
-            .maybeSingle(),
-          supabase
-            .from('event_form_fields')
-            .select('*')
-            .eq('event_id', eventId)
-            .order('sort_order'),
-        ])
-
-        if (cancelled) return
-
-        setImages(imgsResult.data || [])
-        setOrganizer(profResult.data)
-        setFormFields(fieldsResult.data || [])
-
-        // Only check registration if user exists
-        if (user?.id) {
-          const { data: reg } = await supabase
-            .from('registrations')
-            .select('id')
-            .eq('event_id', eventId)
-            .eq('user_id', user.id)
-            .maybeSingle()
-          
-          if (!cancelled) {
-            setAlreadyRegistered(!!reg)
-          }
-        } else {
-          setAlreadyRegistered(false)
-        }
+        setImages(ev.images || ev.event_images || [])
+        setOrganizer(ev.organizer || ev.profiles)
+        setFormFields(ev.form_fields || [])
+        setAlreadyRegistered(!!ev.already_registered)
       } catch (error) {
         if (!cancelled) {
           console.error('Event detail fetch failed:', error)

@@ -1,8 +1,7 @@
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { supabase } from '../../lib/supabase'
-import { EVENT_IMAGES_BUCKET } from '../../lib/supabase'
+import { api } from '../../lib/api'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../lib/authContext'
@@ -42,48 +41,37 @@ export default function EditEvent() {
 
   useEffect(() => {
     async function load() {
-      const { data: ev, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single()
+      try {
+        const ev = await api(`/api/events/${eventId}`)
+        if (!ev) {
+          setLoadingPage(false)
+          return
+        }
 
-      if (error || !ev) {
+        setEventName(ev.name)
+        setForm({
+          name: ev.name,
+          description: ev.description || '',
+          fee_amount: ev.fee_amount / 100,
+          event_date: ev.event_date ? new Date(ev.event_date).toISOString().slice(0, 16) : '',
+          venue: ev.venue || '',
+          max_registrations: ev.max_registrations || '',
+          is_published: ev.is_published ?? false,
+        })
+
+        setExistingImages(ev.images || ev.event_images || [])
+        setFormFields(
+          (ev.form_fields || []).map((f) => ({
+            ...f,
+            id: f.id,
+            options: Array.isArray(f.options) ? f.options : [],
+          }))
+        )
+      } catch (err) {
+        console.error(err)
+      } finally {
         setLoadingPage(false)
-        return
       }
-
-      setEventName(ev.name)
-      setForm({
-        name: ev.name,
-        description: ev.description || '',
-        fee_amount: ev.fee_amount / 100,
-        event_date: ev.event_date ? new Date(ev.event_date).toISOString().slice(0, 16) : '',
-        venue: ev.venue || '',
-        max_registrations: ev.max_registrations || '',
-        is_published: ev.is_published ?? false,
-      })
-
-      const { data: imgs } = await supabase
-        .from('event_images')
-        .select('id, storage_path, sort_order')
-        .eq('event_id', eventId)
-        .order('sort_order')
-      setExistingImages(imgs || [])
-
-      const { data: fields } = await supabase
-        .from('event_form_fields')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('sort_order')
-      setFormFields(
-        (fields || []).map((f) => ({
-          ...f,
-          id: f.id,
-          options: Array.isArray(f.options) ? f.options : [],
-        }))
-      )
-      setLoadingPage(false)
     }
     load()
   }, [eventId])
@@ -122,8 +110,8 @@ export default function EditEvent() {
     setImageFiles((f) => f.filter((_, i) => i !== index))
   }
 
-  async function removeExistingImage(id, path) {
-    await supabase.from('event_images').delete().eq('id', id)
+  async function removeExistingImage(id) {
+    await api(`/api/events/${eventId}/images/${id}`, { method: 'DELETE' })
     setExistingImages((prev) => prev.filter((img) => img.id !== id))
   }
 
@@ -136,9 +124,9 @@ export default function EditEvent() {
     setLoading(true)
 
     try {
-      await supabase
-        .from('events')
-        .update({
+      await api(`/api/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
           name: form.name,
           description: form.description || null,
           fee_amount: Math.round(Number(form.fee_amount) * 100) || 0,
@@ -146,37 +134,22 @@ export default function EditEvent() {
           venue: form.venue || null,
           max_registrations: form.max_registrations ? Number(form.max_registrations) : null,
           is_published: form.is_published,
-        })
-        .eq('id', eventId)
+          form_fields: formFields.map((f, i) => ({
+            field_key: (f.field_key || `field_${i}`).replace(/\s/g, '_'),
+            field_label: f.field_label,
+            field_type: f.field_type,
+            options: f.field_type === 'select'
+              ? (Array.isArray(f.options) ? f.options : (f.options || '').toString().split(',').map((x) => x.trim()).filter(Boolean))
+              : null,
+            is_required: f.is_required ?? true,
+          })),
+        }),
+      })
 
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i]
-        const ext = file.name.split('.').pop()
-        const path = `${eventId}/${crypto.randomUUID()}.${ext}`
-        await supabase.storage.from(EVENT_IMAGES_BUCKET).upload(path, file, { upsert: false })
-        await supabase.from('event_images').insert({
-          event_id: eventId,
-          storage_path: path,
-          sort_order: existingImages.length + i,
-        })
-      }
-
-      await supabase.from('event_form_fields').delete().eq('event_id', eventId)
-
-      for (let i = 0; i < formFields.length; i++) {
-        const f = formFields[i]
-        const options = f.field_type === 'select'
-          ? (Array.isArray(f.options) ? f.options : (f.options || '').toString().split(',').map((x) => x.trim()).filter(Boolean))
-          : null
-        await supabase.from('event_form_fields').insert({
-          event_id: eventId,
-          field_key: (f.field_key || `field_${i}`).replace(/\s/g, '_'),
-          field_label: f.field_label,
-          field_type: f.field_type,
-          options,
-          is_required: f.is_required ?? true,
-          sort_order: i,
-        })
+      if (imageFiles.length) {
+        const fd = new FormData()
+        imageFiles.forEach((file) => fd.append('images', file))
+        await api(`/api/events/${eventId}/images`, { method: 'POST', body: fd })
       }
 
       toast.success('Event updated!')
@@ -195,17 +168,7 @@ export default function EditEvent() {
 
     setDeleting(true)
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId)
-
-      if (error) {
-        console.error('Error deleting event:', error)
-        toast.error(error.message || 'Failed to delete event')
-        setDeleting(false)
-        return
-      }
+      await api(`/api/events/${eventId}`, { method: 'DELETE' })
 
       toast.success('Event deleted successfully')
       navigate({ to: '/admin' })
@@ -311,13 +274,13 @@ export default function EditEvent() {
             <h2 className="text-lg font-semibold text-white">Event Images</h2>
             <div className="flex flex-wrap gap-4">
               {existingImages.map((img) => {
-                const { data: { publicUrl } } = supabase.storage.from(EVENT_IMAGES_BUCKET).getPublicUrl(img.storage_path)
+                const publicUrl = img.public_url
                 return (
                   <div key={img.id} className="relative">
                     <img src={publicUrl} alt="" className="w-24 h-24 object-cover rounded-lg" />
                     <button
                       type="button"
-                      onClick={() => removeExistingImage(img.id, img.storage_path)}
+                      onClick={() => removeExistingImage(img.id)}
                       className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white"
                     >
                       <Trash2 className="w-3 h-3" />

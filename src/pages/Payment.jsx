@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
-import { supabase } from '../lib/supabase'
-import { openRazorpayCheckout } from '../lib/razorpay'
+import { api } from '../lib/api'
+import { createRazorpayOrder, openRazorpayCheckoutWithCallback } from '../lib/razorpay'
 import toast from 'react-hot-toast'
 import { useAuth } from '../lib/authContext'
 import { Loader2, CheckCircle2, XCircle, CreditCard, AlertCircle } from 'lucide-react'
@@ -31,63 +31,26 @@ export default function Payment() {
 
     async function loadPaymentData() {
       try {
-        // Fetch event
-        const { data: ev, error: evError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', eventId)
-          .single()
-
-        if (evError || !ev) {
-          setError('Event not found')
-          setLoading(false)
-          return
-        }
+        const ev = await api(`/api/events/${eventId}`)
         setEvent(ev)
 
-        // Fetch registration
-        const { data: reg, error: regError } = await supabase
-          .from('registrations')
-          .select('*')
-          .eq('id', registrationId)
-          .eq('user_id', profile?.id)
-          .single()
-
-        if (regError || !reg) {
-          setError('Registration not found or unauthorized')
-          setLoading(false)
-          return
-        }
+        const regData = await api(`/api/registrations/${registrationId}`)
+        const reg = { ...regData, status: regData.status }
         setRegistration(reg)
 
-        // Check if already paid
         if (reg.status === 'accepted' || reg.status === 'confirmed') {
           toast.success('Registration already confirmed!')
           navigate({ to: '/dashboard' })
           return
         }
 
-        // Fetch payment record
-        const { data: pay, error: payError } = await supabase
-          .from('payments')
-          .select('*')
-          .eq('registration_id', registrationId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (payError && payError.code !== 'PGRST116') {
-          console.error('Payment fetch error:', payError)
-        }
-
+        const pay = regData.payment || regData.payments?.[0] || null
         setPayment(pay)
 
-        // If payment exists and has order_id, use it
         if (pay?.razorpay_order_id) {
           setOrderId(pay.razorpay_order_id)
         } else {
-          // Create new order
-          await createOrder()
+          await createOrder(ev)
         }
 
         setLoading(false)
@@ -101,52 +64,23 @@ export default function Payment() {
     loadPaymentData()
   }, [registrationId, eventId, profile?.id])
 
-  async function createOrder() {
+  async function createOrder(evOverride) {
     try {
       setError(null)
-      const apiBase = import.meta.env.VITE_API_URL || window.location.origin
-      
-      console.log('Creating order with API base:', apiBase)
-      
-      const createOrderRes = await fetch(`${apiBase}/api/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          registration_id: registrationId,
-          amount: event?.fee_amount || 0,
-          currency: 'INR',
-        }),
-      })
-
-      if (!createOrderRes.ok) {
-        const errData = await createOrderRes.json().catch(() => ({}))
-        const errorMsg = errData.message || 'Could not create payment order'
-        
-        console.error('Order creation failed:', {
-          status: createOrderRes.status,
-          error: errData,
-          apiBase,
-        })
-        
-        if (errorMsg.includes('not configured') || errorMsg.includes('gateway')) {
-          setError('PAYMENT_GATEWAY_NOT_CONFIGURED')
-        } else if (errorMsg.includes('Invalid') || errorMsg.includes('API keys')) {
-          setError('PAYMENT_GATEWAY_NOT_CONFIGURED')
-        } else {
-          setError(`Failed to create order: ${errorMsg}`)
-        }
-        return
-      }
-
-      const { orderId: newOrderId } = await createOrderRes.json()
-      console.log('Order created successfully:', newOrderId)
-      setOrderId(newOrderId)
+      const ev = evOverride || event
+      const result = await createRazorpayOrder(registrationId, ev?.fee_amount || 0)
+      setOrderId(result.orderId)
     } catch (err) {
       console.error('Order creation error:', err)
-      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+      const errorMsg = err.message || 'Could not create payment order'
+      if (errorMsg.includes('not configured') || errorMsg.includes('gateway') || errorMsg.includes('API keys')) {
+        setError('PAYMENT_GATEWAY_NOT_CONFIGURED')
+      } else if (err.status === 404) {
+        setError('API_ENDPOINT_NOT_FOUND')
+      } else if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError')) {
         setError('Network error. Please check your internet connection and VITE_API_URL setting.')
       } else {
-        setError(err.message || 'Failed to create payment order. Please try again.')
+        setError(`Failed to create order: ${errorMsg}`)
       }
     }
   }
@@ -169,36 +103,18 @@ export default function Payment() {
         return
       }
 
-      const paymentResponse = await openRazorpayCheckout({
+      // Use callback URL method - redirects to callback page after payment
+      await openRazorpayCheckoutWithCallback({
         orderId,
         amount: event.fee_amount,
         name: profile.full_name || 'CASCADE Events',
         description: event.name,
         email: profile.email,
+        registrationId: registrationId,
       })
-
-      // Verify payment
-      const apiBase = import.meta.env.VITE_API_URL || window.location.origin
-      const verifyRes = await fetch(`${apiBase}/api/verify-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          registration_id: registrationId,
-          razorpay_payment_id: paymentResponse.razorpay_payment_id,
-          razorpay_order_id: paymentResponse.razorpay_order_id,
-          razorpay_signature: paymentResponse.razorpay_signature,
-        }),
-      })
-
-      if (!verifyRes.ok) {
-        const errData = await verifyRes.json().catch(() => ({}))
-        throw new Error(errData.message || 'Payment verification failed')
-      }
-
-      toast.success('Payment successful! Registration confirmed.')
-      setTimeout(() => {
-        navigate({ to: '/dashboard' })
-      }, 1500)
+      
+      // Don't set processing to false - we're redirecting to callback page
+      // The callback page will handle verification and redirect
     } catch (err) {
       console.error('Payment error:', err)
       setError(err.message || 'Payment failed. Please try again.')
@@ -217,93 +133,7 @@ export default function Payment() {
     )
   }
 
-  if (error === 'PAYMENT_GATEWAY_NOT_CONFIGURED') {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card max-w-2xl w-full p-8"
-        >
-          <div className="text-center space-y-6">
-            <div className="flex justify-center">
-              <AlertCircle className="w-16 h-16 text-yellow-500" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-2">Payment Gateway Not Configured</h1>
-              <p className="text-gray-400 mb-6">
-                Razorpay payment gateway needs to be set up before processing payments.
-              </p>
-            </div>
-            <div className="bg-cascade-surface rounded-lg p-6 text-left space-y-4">
-              <h2 className="text-lg font-semibold text-white mb-4">Setup Instructions:</h2>
-              <div className="space-y-4 text-sm text-gray-300">
-                <div>
-                  <p className="font-medium text-white mb-2">1. Get Razorpay API Keys:</p>
-                  <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
-                    <li>Go to <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" className="text-cascade-purple hover:underline">Razorpay Dashboard</a></li>
-                    <li>Navigate to Settings → API Keys</li>
-                    <li>Generate Test Key (for development) or Live Key (for production)</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-medium text-white mb-2">2. Set Environment Variables:</p>
-                  <div className="bg-cascade-darker rounded p-4 font-mono text-xs space-y-2">
-                    <div>
-                      <p className="text-green-400 mb-1"># Frontend (in .env.local or Vercel)</p>
-                      <p className="text-gray-300">VITE_RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxx</p>
-                    </div>
-                    <div className="mt-3">
-                      <p className="text-green-400 mb-1"># Backend (in Vercel Environment Variables only)</p>
-                      <p className="text-gray-300">RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxx</p>
-                      <p className="text-gray-300">RAZORPAY_KEY_SECRET=your_key_secret_here</p>
-                    </div>
-                    <div className="mt-3">
-                      <p className="text-yellow-400 mb-1"># API URL (Optional - only if API is on different domain)</p>
-                      <p className="text-gray-300">VITE_API_URL=https://your-vercel-app.vercel.app</p>
-                      <p className="text-gray-500 text-xs mt-1">Leave empty if frontend and API are on same domain</p>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <p className="font-medium text-white mb-2">3. For Vercel Deployment:</p>
-                  <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
-                    <li>Go to your Vercel project → Settings → Environment Variables</li>
-                    <li>Add all variables above (VITE_RAZORPAY_KEY_ID, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)</li>
-                    <li>If your API is on a different domain, add VITE_API_URL</li>
-                    <li>Redeploy your application</li>
-                  </ul>
-                </div>
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3 mt-4">
-                  <p className="text-yellow-400 text-xs font-medium mb-1">💡 About VITE_API_URL:</p>
-                  <p className="text-gray-400 text-xs">
-                    Only set this if your API serverless functions are on a different domain than your frontend. 
-                    If both are on the same Vercel deployment, leave it empty - it will use the current domain automatically.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => navigate({ to: '/dashboard' })}
-                className="btn-secondary"
-              >
-                Go to Dashboard
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn-primary"
-              >
-                Retry Payment
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    )
-  }
-
-  if (error && error !== 'PAYMENT_GATEWAY_NOT_CONFIGURED') {
+  if (error === 'API_ENDPOINT_NOT_FOUND') {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <motion.div
@@ -311,19 +141,9 @@ export default function Payment() {
           animate={{ opacity: 1, y: 0 }}
           className="card max-w-md w-full p-8 text-center"
         >
-          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">Payment Error</h1>
-          <p className="text-gray-400 mb-6">{error}</p>
-          {error.includes('create order') && (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4 text-left">
-              <p className="text-yellow-400 text-xs font-medium mb-1">Troubleshooting:</p>
-              <ul className="text-gray-400 text-xs space-y-1 list-disc list-inside">
-                <li>Check that Razorpay keys are set in Vercel</li>
-                <li>Verify VITE_API_URL is correct (or leave empty if same domain)</li>
-                <li>Check browser console for detailed errors</li>
-              </ul>
-            </div>
-          )}
+          <p className="text-gray-400 mb-6">Unable to create payment order. Please try again.</p>
           <div className="flex gap-4 justify-center">
             <button
               onClick={() => navigate({ to: '/dashboard' })}
@@ -340,7 +160,77 @@ export default function Payment() {
               }}
               className="btn-primary"
             >
-              Retry Order Creation
+              Retry
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  if (error === 'PAYMENT_GATEWAY_NOT_CONFIGURED') {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card max-w-md w-full p-8 text-center"
+        >
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Payment Error</h1>
+          <p className="text-gray-400 mb-6">Payment gateway is not configured. Please try again later.</p>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => navigate({ to: '/dashboard' })}
+              className="btn-secondary"
+            >
+              Go to Dashboard
+            </button>
+            <button
+              onClick={async () => {
+                setError(null)
+                setLoading(true)
+                await createOrder()
+                setLoading(false)
+              }}
+              className="btn-primary"
+            >
+              Retry
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  if (error && error !== 'PAYMENT_GATEWAY_NOT_CONFIGURED' && error !== 'API_ENDPOINT_NOT_FOUND') {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card max-w-md w-full p-8 text-center"
+        >
+          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Payment Error</h1>
+          <p className="text-gray-400 mb-6">Unable to process payment. Please try again.</p>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => navigate({ to: '/dashboard' })}
+              className="btn-secondary"
+            >
+              Go to Dashboard
+            </button>
+            <button
+              onClick={async () => {
+                setError(null)
+                setLoading(true)
+                await createOrder()
+                setLoading(false)
+              }}
+              className="btn-primary"
+            >
+              Retry
             </button>
           </div>
         </motion.div>
@@ -441,27 +331,20 @@ export default function Payment() {
           Cancel
         </button>
 
-        {error && error !== 'PAYMENT_GATEWAY_NOT_CONFIGURED' && (
-          <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-red-400 text-sm">{error}</p>
-                {error.includes('create order') && (
-                  <button
-                    onClick={async () => {
-                      setError(null)
-                      setProcessing(true)
-                      await createOrder()
-                      setProcessing(false)
-                    }}
-                    className="text-red-300 text-xs underline mt-2 hover:text-red-200"
-                  >
-                    Retry creating order
-                  </button>
-                )}
-              </div>
-            </div>
+        {error && error !== 'PAYMENT_GATEWAY_NOT_CONFIGURED' && error !== 'API_ENDPOINT_NOT_FOUND' && (
+          <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
+            <p className="text-red-400 text-sm mb-2">Payment error occurred</p>
+            <button
+              onClick={async () => {
+                setError(null)
+                setProcessing(true)
+                await createOrder()
+                setProcessing(false)
+              }}
+              className="text-red-300 text-sm underline hover:text-red-200"
+            >
+              Retry
+            </button>
           </div>
         )}
       </motion.div>

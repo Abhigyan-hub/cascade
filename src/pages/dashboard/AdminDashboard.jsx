@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/api'
 import { Plus, Calendar, Users, Settings, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useAuth } from '../../lib/authContext'
@@ -20,42 +20,9 @@ export default function AdminDashboard() {
 
     async function fetch() {
       try {
-        // Admins can see all events, so fetch all events they have access to
-        const { data: allEvents, error: eventsError } = await supabase
-          .from('events')
-          .select('id, name, event_date, fee_amount, is_published, created_at')
-          .order('created_at', { ascending: false })
-
-        if (eventsError) {
-          console.error('Error fetching events:', eventsError)
-          setEvents([])
-        } else {
-          setEvents(allEvents || [])
-        }
-
-        const eventIds = (allEvents || []).map((e) => e.id)
-        if (eventIds.length > 0) {
-          const { count: total, error: totalError } = await supabase
-            .from('registrations')
-            .select('*', { count: 'exact', head: true })
-            .in('event_id', eventIds)
-          if (totalError) {
-            console.error('Error counting total registrations:', totalError)
-          }
-
-          const { count: pending, error: pendingError } = await supabase
-            .from('registrations')
-            .select('*', { count: 'exact', head: true })
-            .in('event_id', eventIds)
-            .eq('status', 'pending')
-          if (pendingError) {
-            console.error('Error counting pending registrations:', pendingError)
-          }
-
-          setStats({ totalRegistrations: total || 0, pendingCount: pending || 0 })
-        } else {
-          setStats({ totalRegistrations: 0, pendingCount: 0 })
-        }
+        const { events: allEvents, stats: nextStats } = await api('/api/events/admin/mine')
+        setEvents(allEvents || [])
+        setStats(nextStats || { totalRegistrations: 0, pendingCount: 0 })
       } catch (err) {
         console.error('Exception in AdminDashboard fetch:', err)
       } finally {
@@ -74,34 +41,13 @@ export default function AdminDashboard() {
 
     setDeletingId(eventId)
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId)
-
-      if (error) {
-        console.error('Error deleting event:', error)
-        toast.error(error.message || 'Failed to delete event')
-        setDeletingId(null)
-        return
-      }
-
+      await api(`/api/events/${eventId}`, { method: 'DELETE' })
       toast.success('Event deleted successfully')
       setEvents((prev) => prev.filter((e) => e.id !== eventId))
-      
-      // Update stats
-      const eventIds = events.filter((e) => e.id !== eventId).map((e) => e.id)
-      if (eventIds.length > 0) {
-        const { count: total } = await supabase
-          .from('registrations')
-          .select('*', { count: 'exact', head: true })
-          .in('event_id', eventIds)
-        const { count: pending } = await supabase
-          .from('registrations')
-          .select('*', { count: 'exact', head: true })
-          .in('event_id', eventIds)
-          .eq('status', 'pending')
-        setStats({ totalRegistrations: total || 0, pendingCount: pending || 0 })
+      const remaining = events.filter((e) => e.id !== eventId)
+      if (remaining.length > 0) {
+        const { stats: nextStats } = await api('/api/events/admin/mine')
+        setStats(nextStats || { totalRegistrations: 0, pendingCount: 0 })
       } else {
         setStats({ totalRegistrations: 0, pendingCount: 0 })
       }

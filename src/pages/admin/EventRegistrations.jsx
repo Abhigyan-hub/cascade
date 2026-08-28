@@ -1,7 +1,7 @@
 import { Link, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/api'
 import { CheckCircle, XCircle, Clock, ChevronLeft, User } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -31,51 +31,9 @@ export default function EventRegistrations() {
       try {
         console.log('Fetching registrations for event:', eventId)
         
-        const { data: ev, error: evError } = await supabase
-          .from('events')
-          .select('id, name')
-          .eq('id', eventId)
-          .single()
-        
-        if (evError) {
-          console.error('Error fetching event:', evError)
-          toast.error('Failed to load event details')
-        } else {
-          console.log('Event loaded:', ev?.name)
-          setEvent(ev)
-        }
-
-        const { data: regs, error: regsError } = await supabase
-          .from('registrations')
-          .select(`
-            id,
-            form_data,
-            status,
-            status_notes,
-            status_updated_at,
-            created_at,
-            profiles!user_id(id, full_name, email)
-          `)
-          .eq('event_id', eventId)
-          .order('created_at', { ascending: false })
-
-        if (regsError) {
-          console.error('Error fetching registrations:', regsError)
-          console.error('Error details:', {
-            message: regsError.message,
-            code: regsError.code,
-            details: regsError.details,
-            hint: regsError.hint
-          })
-          toast.error(`Failed to load registrations: ${regsError.message}`)
-          setRegistrations([])
-        } else {
-          console.log('Registrations loaded:', regs?.length || 0)
-          setRegistrations(regs || [])
-          if (regs && regs.length > 0) {
-            console.log('Sample registration:', regs[0])
-          }
-        }
+        const data = await api(`/api/registrations/event/${eventId}`)
+        setEvent(data.event)
+        setRegistrations(data.registrations || [])
       } catch (err) {
         console.error('Exception in EventRegistrations fetch:', err)
         toast.error('An unexpected error occurred')
@@ -93,23 +51,8 @@ export default function EventRegistrations() {
     setHistoryUser(user)
     setHistoryLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('registrations')
-        .select(`
-          id,
-          status,
-          created_at,
-          events(id, name, event_date, fee_amount)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Error fetching user registration history:', error)
-        setHistoryRegs([])
-      } else {
-        setHistoryRegs(data || [])
-      }
+      const data = await api(`/api/registrations/user/${user.id}/history`)
+      setHistoryRegs(data || [])
     } catch (err) {
       console.error('Exception fetching user registration history:', err)
       setHistoryRegs([])
@@ -131,27 +74,9 @@ export default function EventRegistrations() {
     setUpdatingStatus((prev) => new Set(prev).add(regId))
     
     try {
-      const { error } = await supabase
-        .from('registrations')
-        .update({
-          status,
-          status_notes: notes || null,
-          status_updated_by: profile?.id,
-          status_updated_at: new Date().toISOString(),
-        })
-        .eq('id', regId)
-
-      if (error) {
-        toast.error(error.message)
-        return
-      }
-
-      await supabase.from('activity_logs').insert({
-        actor_id: profile?.id,
-        action: `${status} registration`,
-        entity_type: 'registration',
-        entity_id: regId,
-        metadata: { event_id: eventId },
+      await api(`/api/registrations/${regId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, notes }),
       })
 
       setRegistrations((prev) =>
