@@ -1,142 +1,130 @@
-# Cascade Forum Committee Website
+# CASCADE Event Management Platform
 
-A comprehensive event management system for Cascade Forum with role-based access control.
-
-## Features
-
-### Client (End User)
-- View all events
-- Register for free or paid events
-- View registration status (Pending/Accepted/Rejected)
-- Make payments for paid events
-- View registration history
-
-### Admin
-- Create events and registration forms
-- Accept or reject registrations
-- View events they created (with name displayed)
-- No access to transaction history
-
-### Developer (Super Admin)
-- View all users, events, payments, and registrations
-- Open any user profile and view full history
-- View admin activity logs
-- System-wide dashboard
-- Can accept/reject any form
+A production-ready event management web application for CASCADE (Department of CSE & AI, GHRSTU). Features dark theme branding, paid/free events, custom registration forms, Razorpay payments, and role-based dashboards.
 
 ## Tech Stack
 
-- **Frontend**: Next.js 16 (App Router)
-- **Backend**: Supabase (PostgreSQL + Auth)
-- **Payment**: Razorpay
-- **UI**: Custom components with Cascade Forum branding
-- **Deployment**: Vercel
+- **Frontend:** React 18, Vite, Tailwind CSS, Framer Motion (deploy on Vercel)
+- **API:** Express on EC2
+- **Database:** AWS RDS PostgreSQL
+- **Images:** Amazon S3
+- **Payments:** Razorpay (India)
 
-## Quick Start
+## Features
 
-See [SETUP.md](./SETUP.md) for detailed setup instructions.
+- **Client:** Browse events, register (free/paid), Razorpay checkout, dashboard with registration status
+- **Admin:** Create events, custom forms per event, image carousel, accept/reject registrations
+- **Developer/Super Admin:** Full system access, user list, activity logs
 
-1. Install dependencies: `npm install`
-2. Set up Supabase database (run `supabase/schema.sql`)
-3. Configure environment variables (see `.env.example`)
-4. Run development server: `npm run dev`
+## Local development
 
-## Environment Variables
+### 1. Database
 
-Required environment variables (see `.env.example`):
-
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anon key
-- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
-- `RAZORPAY_KEY_ID` - Your Razorpay key ID (server-side)
-- `RAZORPAY_KEY_SECRET` - Your Razorpay key secret (server-side)
-- `NEXT_PUBLIC_RAZORPAY_KEY_ID` - Your Razorpay key ID (client-side)
-- `NEXT_PUBLIC_APP_URL` - Your application URL
-
-<<<<<<< HEAD
-For detailed setup instructions, see [SETUP.md](./SETUP.md).
-=======
-### 3. Razorpay Setup
-
-1. Create account at [razorpay.com](https://razorpay.com)
-2. Get Key ID and Secret from Dashboard
-3. Add webhook: `https://your-domain.com/api/webhook-razorpay`
-4. Select events: `payment.captured`, `payment.authorized`
-5. Set webhook secret in env
-
-### 4. Create First Admin
-
-Sign up a user, then in Supabase SQL Editor:
-
-```sql
-UPDATE profiles SET role = 'admin' WHERE email = 'your@email.com';
-```
-
-For super admin:
-
-```sql
-UPDATE profiles SET role = 'developer' WHERE email = 'your@email.com';
-```
-
-### 5. Run Locally
+Create a Postgres database (local or RDS) and apply the schema:
 
 ```bash
+cd backend
+cp .env.example .env
+# Set DATABASE_URL (for local Postgres without SSL add DATABASE_SSL=false)
+npm install
+npm run db:init
+```
+
+Promote an admin after signup:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'your@email.com';
+-- or
+UPDATE users SET role = 'developer' WHERE email = 'your@email.com';
+```
+
+### 2. API (EC2 locally)
+
+In `backend/.env` set `JWT_SECRET`, Razorpay keys, and optionally S3 credentials.
+
+```bash
+cd backend
 npm run dev
 ```
 
-For payment APIs locally, use [Vercel CLI](https://vercel.com/cli):
+API listens on `http://localhost:4000`.
+
+### 3. Frontend
 
 ```bash
-vercel dev
+cp .env.example .env.local
+# VITE_API_URL=http://localhost:4000
+# VITE_RAZORPAY_KEY_ID=rzp_test_xxx
+npm install
+npm run dev
 ```
 
-### 6. Deploy to Vercel
+If `VITE_API_URL` is empty, Vite proxies `/api` to `localhost:4000`.
 
-```bash
-vercel
+### 4. Razorpay
+
+1. Create an account at [razorpay.com](https://razorpay.com)
+2. Put **Key ID** in `VITE_RAZORPAY_KEY_ID` (frontend) and `RAZORPAY_KEY_ID` (server)
+3. Put **Key Secret** only on the server (`RAZORPAY_KEY_SECRET`)
+4. Webhook URL: `https://your-ec2-domain/api/payments/webhook`
+5. Events: `payment.captured`, `payment.authorized`
+6. Set `RAZORPAY_WEBHOOK_SECRET` on the server
+
+See [RAZORPAY_SETUP.md](RAZORPAY_SETUP.md) for dashboard steps.
+
+## AWS backend + frontend on localhost
+
+Use this while you keep Vite on your PC and run the API on EC2.
+
+Full click-path (RDS, security groups, S3, EC2, systemd, `.env.local`): **[docs/AWS_BACKEND_LOCAL_FRONTEND.md](docs/AWS_BACKEND_LOCAL_FRONTEND.md)**.
+
+Short version:
+
+1. RDS Postgres in a private SG (5432 **only from EC2**).
+2. EC2 in the **same VPC**, port **4000** and **22** from **your home IP only**.
+3. On EC2: copy `backend/`, create `.env`, `npm install --omit=dev`, `npm run db:init`, start with `backend/deploy/cascade-api.service`.
+4. On your PC, `.env.local`:
+
+```
+VITE_API_URL=http://YOUR_EC2_PUBLIC_IP:4000
+VITE_RAZORPAY_KEY_ID=rzp_test_xxx
 ```
 
-Add all env vars in Vercel project settings. 
+5. `npm run dev` → `http://localhost:5173`
 
-**About VITE_API_URL:**
-- **Leave it empty** if your frontend and API are on the same Vercel deployment (most common case)
-- **Only set it** if your API serverless functions are on a completely different domain
-- If empty, the app will automatically use `window.location.origin` (current domain)
-- Example: `VITE_API_URL=https://your-api-domain.com` (only if different from frontend)
+`FRONTEND_ORIGIN` on EC2 must include `http://localhost:5173`.
+
+## AWS production (frontend on Vercel later)
+
+
+1. **RDS:** Postgres 16, private subnet. Security group: allow 5432 **only from the EC2 security group**. Run `backend/db/schema.sql`.
+2. **S3:** Bucket for event images. Attach an IAM role to EC2 with `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`. Make objects publicly readable or put CloudFront in front and set `S3_PUBLIC_BASE_URL`.
+3. **EC2:** Node 20, Nginx reverse proxy (TLS). Copy `backend/`, set env vars, run `npm start` under systemd or PM2.
+4. **Vercel:** Build the Vite app. Set `VITE_API_URL=https://api.yourdomain.com` and `VITE_RAZORPAY_KEY_ID`. Set `FRONTEND_ORIGIN` on the API to the Vercel URL (comma-separated if you have preview URLs).
+
+Existing Supabase passwords cannot be migrated. Users must sign up again (or you import emails later and add a reset-password flow).
 
 ## Folder Structure
 
 ```
 cascade/
-├── api/                    # Vercel serverless (Razorpay)
-│   ├── create-order.js
-│   ├── verify-payment.js
-│   └── webhook-razorpay.js
-├── public/
-├── src/
-│   ├── components/         # UI components
-│   ├── lib/                # Supabase, auth, Razorpay
-│   ├── pages/              # Route pages
-│   │   ├── dashboard/      # Client, Admin, Developer
-│   │   └── admin/          # Create/Edit event, Registrations
-│   └── App.jsx
-├── supabase/
-│   └── migrations/         # SQL schema, RLS, triggers
+├── backend/                # Express API (EC2)
+│   ├── db/schema.sql
+│   └── src/
+├── src/                    # React frontend
 ├── vercel.json
 └── package.json
 ```
 
 ## Payment Flow
 
-1. User fills event-specific registration form
-2. Registration record created (status: pending)
-3. If paid: Payment record created, Razorpay order created via API
-4. User completes payment in Razorpay Checkout
-5. Frontend calls `/api/verify-payment` with payment details
-6. Backend verifies signature, updates payment to `captured`
-7. Webhook optionally syncs for reliability
+1. User fills the event registration form
+2. API creates a registration (and a pending payment if the event is paid)
+3. API creates a Razorpay order
+4. User pays in Razorpay Checkout
+5. Frontend calls `POST /api/payments/verify`
+6. Webhook `POST /api/payments/webhook` syncs captured payments as a backup
 
 ## License
 
 Private - CASCADE Department of CSE & AI, GHRSTU
->>>>>>> 1845322e70ebf88b2339b048efa29f4d0eaa0608
