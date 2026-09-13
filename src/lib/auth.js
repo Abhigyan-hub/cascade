@@ -6,7 +6,32 @@ export async function signUp(email, password, fullName) {
       method: 'POST',
       body: JSON.stringify({ email, password, full_name: fullName }),
     })
-    setToken(data.token)
+    if (data.token) setToken(data.token)
+    return { data, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function verifyEmail(token) {
+  try {
+    const data = await api('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    })
+    if (data.token) setToken(data.token)
+    return { data, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function resendVerification(email) {
+  try {
+    const data = await api('/api/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
     return { data, error: null }
   } catch (error) {
     return { data: null, error }

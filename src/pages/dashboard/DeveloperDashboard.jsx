@@ -7,11 +7,11 @@ import {
   Calendar,
   CreditCard,
   Activity,
-  Shield,
   ChevronRight,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useAuth } from '../../lib/authContext'
+import PageHeader from '../../components/PageHeader'
 
 export default function DeveloperDashboard() {
   const { profile } = useAuth()
@@ -48,15 +48,10 @@ export default function DeveloperDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-cascade-gold/20 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-cascade-gold" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Super Admin</h1>
-            <p className="text-gray-500">Full system oversight</p>
-          </div>
-        </div>
+        <PageHeader
+          title="Super Admin"
+          subtitle="Full system oversight"
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           <div className="card p-6">

@@ -35,4 +35,15 @@
            text-white placeholder-gray-500 focus:outline-none focus:ring-2
            focus:ring-cascade-purple/50 focus:border-cascade-purple transition-all;
   }
+  .input-cascade-error {
+    @apply border-red-500/60 focus:ring-red-500/40 focus:border-red-400;
+  }
+  .input-cascade-success {
+    @apply border-emerald-500/50 focus:ring-emerald-500/30 focus:border-emerald-400;
+  }
+  .sticky-page-header {
+    @apply sticky z-40 bg-cascade-darker/95 backdrop-blur-lg border-b border-cascade-border
+           -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-8;
+    top: 4rem;
+  }
 }

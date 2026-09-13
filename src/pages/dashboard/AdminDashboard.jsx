@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { api } from '../../lib/api'
 import { Plus, Calendar, Users, Settings, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useAuth } from '../../lib/authContext'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/ConfirmModal'
+import PageHeader from '../../components/PageHeader'
 
 export default function AdminDashboard() {
   const { profile } = useAuth()
-  const navigate = useNavigate()
   const [events, setEvents] = useState([])
   const [stats, setStats] = useState({ totalRegistrations: 0, pendingCount: 0 })
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null)
 
   useEffect(() => {
     if (!profile?.id) return
@@ -32,19 +34,21 @@ export default function AdminDashboard() {
     fetch()
   }, [profile?.id])
 
-  async function handleDeleteEvent(eventId, eventName) {
-    if (deletingId === eventId) return // Prevent double-click
-    
-    if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone and will also delete all registrations and related data.`)) {
-      return
-    }
+  function handleDeleteEvent(eventId, eventName) {
+    if (deletingId === eventId) return
+    setPendingDelete({ id: eventId, name: eventName })
+  }
 
+  async function confirmDeleteEvent() {
+    if (!pendingDelete) return
+    const eventId = pendingDelete.id
     setDeletingId(eventId)
     try {
       await api(`/api/events/${eventId}`, { method: 'DELETE' })
       toast.success('Event deleted successfully')
-      setEvents((prev) => prev.filter((e) => e.id !== eventId))
       const remaining = events.filter((e) => e.id !== eventId)
+      setEvents(remaining)
+      setPendingDelete(null)
       if (remaining.length > 0) {
         const { stats: nextStats } = await api('/api/events/admin/mine')
         setStats(nextStats || { totalRegistrations: 0, pendingCount: 0 })
@@ -65,19 +69,16 @@ export default function AdminDashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-gray-500 mt-1">Manage your events and registrations</p>
-          </div>
-          <Link
-            to="/admin/events/new"
-            className="btn-primary inline-flex items-center gap-2 w-fit"
-          >
-            <Plus className="w-5 h-5" />
-            Create Event
-          </Link>
-        </div>
+        <PageHeader
+          title="Admin Dashboard"
+          subtitle="Manage your events and registrations"
+          actions={
+            <Link to="/admin/events/new" className="btn-primary inline-flex items-center gap-2 w-fit">
+              <Plus className="w-5 h-5" />
+              Create Event
+            </Link>
+          }
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <div className="card p-6">
@@ -183,6 +184,16 @@ export default function AdminDashboard() {
           </div>
         )}
       </motion.div>
+      <ConfirmModal
+        open={!!pendingDelete}
+        title="Delete this event?"
+        message={`"${pendingDelete?.name}" and all of its registrations will be permanently deleted.`}
+        confirmLabel="Delete event"
+        variant="danger"
+        loading={!!deletingId}
+        onConfirm={confirmDeleteEvent}
+        onCancel={() => !deletingId && setPendingDelete(null)}
+      />
     </div>
   )
 }

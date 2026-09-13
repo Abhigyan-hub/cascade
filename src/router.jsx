@@ -13,6 +13,8 @@ import EditEvent from './pages/admin/EditEvent'
 import EventRegistrations from './pages/admin/EventRegistrations'
 import Payment from './pages/Payment'
 import PaymentCallback from './pages/PaymentCallback'
+import Privacy from './pages/Privacy'
+import VerifyEmail from './pages/VerifyEmail'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './lib/authContext'
 
@@ -22,6 +24,19 @@ const rootRoute = createRootRoute({
       <AuthProvider>
         <Layout />
       </AuthProvider>
+    )
+  },
+  errorComponent: function RouteError({ error }) {
+    return (
+      <div className="min-h-screen bg-[#050508] text-white flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <h1 className="text-2xl font-bold mb-3">Something went wrong</h1>
+          <p className="text-gray-400 text-sm mb-6">{error?.message || 'The page failed to load.'}</p>
+          <a href="/" className="inline-block px-6 py-3 rounded-xl font-semibold bg-[#a855f7] text-white">
+            Reload home
+          </a>
+        </div>
+      </div>
     )
   },
   notFoundComponent: function NotFound() {
@@ -171,6 +186,27 @@ const paymentCallbackRoute = createRoute({
   component: PaymentCallback,
 })
 
+const privacyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/privacy',
+  component: Privacy,
+})
+
+const faqRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/faq',
+  component: Faq,
+})
+
+const verifyEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/verify-email',
+  validateSearch: (search) => ({
+    token: typeof search?.token === 'string' ? search.token : '',
+  }),
+  component: VerifyEmail,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   eventDetailRoute,
@@ -185,6 +221,9 @@ const routeTree = rootRoute.addChildren([
   developerRoute,
   paymentRoute,
   paymentCallbackRoute,
+  privacyRoute,
+  faqRoute,
+  verifyEmailRoute,
 ])
 
 export const router = createRouter({ routeTree })

@@ -38,14 +38,20 @@ export default function Payment() {
         const reg = { ...regData, status: regData.status }
         setRegistration(reg)
 
-        if (reg.status === 'accepted' || reg.status === 'confirmed') {
-          toast.success('Registration already confirmed!')
-          navigate({ to: '/dashboard' })
+        const pay = regData.payment || regData.payments?.[0] || null
+        setPayment(pay)
+
+        if (reg.status === 'rejected') {
+          setError('This registration was rejected. You cannot pay for it.')
+          setLoading(false)
           return
         }
 
-        const pay = regData.payment || regData.payments?.[0] || null
-        setPayment(pay)
+        if (pay?.status === 'captured') {
+          toast.success('Payment already completed')
+          navigate({ to: '/dashboard' })
+          return
+        }
 
         if (pay?.razorpay_order_id) {
           setOrderId(pay.razorpay_order_id)
@@ -213,7 +219,7 @@ export default function Payment() {
         >
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">Payment Error</h1>
-          <p className="text-gray-400 mb-6">Unable to process payment. Please try again.</p>
+          <p className="text-gray-400 mb-6">{error}</p>
           <div className="flex gap-4 justify-center">
             <button
               onClick={() => navigate({ to: '/dashboard' })}
@@ -303,7 +309,12 @@ export default function Payment() {
 
         <button
           onClick={handlePayment}
-          disabled={processing || !orderId || payment?.status === 'captured'}
+          disabled={
+            processing ||
+            !orderId ||
+            payment?.status === 'captured' ||
+            registration.status === 'rejected'
+          }
           className="btn-primary w-full flex items-center justify-center gap-2"
         >
           {processing ? (

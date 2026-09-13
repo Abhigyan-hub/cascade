@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from '../lib/api'
 import EventCard from '../components/EventCard'
+import PageHeader from '../components/PageHeader'
 
 export default function Home() {
   const [events, setEvents] = useState([])
@@ -30,18 +31,14 @@ export default function Home() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
-      >
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-          CASCADE <span className="text-cascade-purple">Events</span>
-        </h1>
-        <p className="text-gray-400 max-w-2xl mx-auto">
-          Department of CSE & AI • GHRSTU — Browse and register for workshops, hackathons, and tech events.
-        </p>
-      </motion.div>
+      <PageHeader
+        title={
+          <>
+            CASCADE <span className="text-cascade-purple">Events</span>
+          </>
+        }
+        subtitle="Department of CSE & AI • GHRSTU — Browse and register for workshops, hackathons, and tech events."
+      />
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

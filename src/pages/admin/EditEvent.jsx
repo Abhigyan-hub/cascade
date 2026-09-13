@@ -5,6 +5,9 @@ import { api } from '../../lib/api'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../lib/authContext'
+import FormAlert from '../../components/FormAlert'
+import ConfirmModal from '../../components/ConfirmModal'
+import PageHeader from '../../components/PageHeader'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -28,6 +31,10 @@ export default function EditEvent() {
   const [existingImages, setExistingImages] = useState([])
   const [imageFiles, setImageFiles] = useState([])
   const [eventName, setEventName] = useState('')
+  const [formError, setFormError] = useState('')
+  const [formSuccess, setFormSuccess] = useState('')
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -118,10 +125,17 @@ export default function EditEvent() {
   async function handleSubmit(e) {
     e.preventDefault()
     e.stopPropagation()
-    
+    if (loading) return
+    setFormError('')
+    setFormSuccess('')
+    setSaveConfirmOpen(true)
+  }
+
+  async function confirmSave() {
     if (loading) return
 
     setLoading(true)
+    setFormError('')
 
     try {
       await api(`/api/events/${eventId}`, {
@@ -152,29 +166,34 @@ export default function EditEvent() {
         await api(`/api/events/${eventId}/images`, { method: 'POST', body: fd })
       }
 
+      setSaveConfirmOpen(false)
+      setFormSuccess('Event updated.')
       toast.success('Event updated!')
       navigate({ to: '/admin' })
     } catch (err) {
-      toast.error(err.message || 'Update failed')
+      const message = err.message || 'Update failed'
+      setFormError(message)
+      toast.error(message)
+      setSaveConfirmOpen(false)
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleDelete() {
-    if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone and will also delete all registrations, payments, and related data.`)) {
-      return
-    }
-
+  async function confirmDelete() {
     setDeleting(true)
+    setFormError('')
     try {
       await api(`/api/events/${eventId}`, { method: 'DELETE' })
-
+      setDeleteOpen(false)
+      setFormSuccess('Event deleted.')
       toast.success('Event deleted successfully')
       navigate({ to: '/admin' })
     } catch (err) {
       console.error('Exception deleting event:', err)
-      toast.error('Failed to delete event')
+      const message = err.message || 'Failed to delete event'
+      setFormError(message)
+      toast.error(message)
       setDeleting(false)
     }
   }
@@ -193,9 +212,11 @@ export default function EditEvent() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold text-white mb-8">Edit Event</h1>
+        <PageHeader compact title="Edit Event" subtitle={eventName || 'Update details and registration fields'} />
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {formError && <FormAlert type="error" title="Could not save event">{formError}</FormAlert>}
+          {formSuccess && <FormAlert type="success" title="Saved">{formSuccess}</FormAlert>}
           <div className="card p-6 space-y-6">
             <h2 className="text-lg font-semibold text-white">Basic Details</h2>
             <div>
@@ -380,7 +401,7 @@ export default function EditEvent() {
             </button>
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => setDeleteOpen(true)}
               disabled={deleting || loading}
               className="btn-secondary text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
@@ -389,6 +410,25 @@ export default function EditEvent() {
             </button>
           </div>
         </form>
+        <ConfirmModal
+          open={saveConfirmOpen}
+          title="Save changes?"
+          message={`Update "${form.name || eventName || 'this event'}" with the details on this page.`}
+          confirmLabel="Save"
+          loading={loading}
+          onConfirm={confirmSave}
+          onCancel={() => !loading && setSaveConfirmOpen(false)}
+        />
+        <ConfirmModal
+          open={deleteOpen}
+          title="Delete this event?"
+          message={`"${eventName}" and all of its registrations will be permanently deleted.`}
+          confirmLabel="Delete event"
+          variant="danger"
+          loading={deleting}
+          onConfirm={confirmDelete}
+          onCancel={() => !deleting && setDeleteOpen(false)}
+        />
       </motion.div>
     </div>
   )

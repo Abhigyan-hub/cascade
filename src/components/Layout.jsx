@@ -1,19 +1,35 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { Calendar, Shield, LogOut, Menu, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/authContext'
+import ConsentNotice from './ConsentNotice'
+import ConfirmModal from './ConfirmModal'
 
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const [signOutOpen, setSignOutOpen] = useState(false)
   const { user, profile, signOut } = useAuth()
 
-  const handleSignOut = async () => {
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 8)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const handleSignOut = () => {
     setMobileMenuOpen(false)
-    // Don't await - signOut is now non-blocking
+    setSignOutOpen(true)
+  }
+
+  const confirmSignOut = () => {
+    setSignOutOpen(false)
     signOut().catch((err) => {
       console.error('Sign out error (non-blocking):', err)
-      // Force navigation as fallback
       window.location.href = '/login'
     })
   }
@@ -23,7 +39,11 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-50 bg-cascade-dark/95 backdrop-blur-lg border-b border-cascade-border">
+      <header
+        className={`sticky top-0 z-50 bg-cascade-dark/95 backdrop-blur-lg border-b border-cascade-border transition-shadow ${
+          scrolled ? 'shadow-lg shadow-black/30' : ''
+        }`}
+      >
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2 group">
@@ -36,21 +56,17 @@ export default function Layout() {
               <span className="hidden sm:inline text-gray-500 text-sm">Events</span>
             </Link>
 
-            {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-6">
-              <Link
-                to="/"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
+              <Link to="/" className="text-gray-400 hover:text-white transition-colors">
                 Events
+              </Link>
+              <Link to="/faq" className="text-gray-400 hover:text-white transition-colors">
+                FAQ
               </Link>
               {user ? (
                 <>
                   {profile?.role === 'client' && (
-                    <Link
-                      to="/dashboard"
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
+                    <Link to="/dashboard" className="text-gray-400 hover:text-white transition-colors">
                       Dashboard
                     </Link>
                   )}
@@ -82,23 +98,16 @@ export default function Layout() {
                 </>
               ) : (
                 <>
-                  <Link
-                    to="/login"
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
+                  <Link to="/login" className="text-gray-400 hover:text-white transition-colors">
                     Login
                   </Link>
-                  <Link
-                    to="/signup"
-                    className="btn-primary py-2"
-                  >
+                  <Link to="/signup" className="btn-primary py-2">
                     Sign up
                   </Link>
                 </>
               )}
             </div>
 
-            {/* Mobile menu button */}
             <button
               className="md:hidden p-2 text-gray-400 hover:text-white"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -107,7 +116,6 @@ export default function Layout() {
             </button>
           </div>
 
-          {/* Mobile Nav */}
           {mobileMenuOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -118,6 +126,9 @@ export default function Layout() {
               <div className="flex flex-col gap-3">
                 <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
                   Events
+                </Link>
+                <Link to="/faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
+                  FAQ
                 </Link>
                 {user ? (
                   <>
@@ -142,7 +153,9 @@ export default function Layout() {
                   </>
                 ) : (
                   <>
-                    <Link to="/login" onClick={() => setMobileMenuOpen(false)}>Login</Link>
+                    <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                      Login
+                    </Link>
                     <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="btn-primary">
                       Sign up
                     </Link>
@@ -168,12 +181,29 @@ export default function Layout() {
               <span className="font-semibold text-cascade-purple">CASCADE</span>
               <span className="text-gray-500 text-sm">Department of CSE & AI • GHRSTU</span>
             </div>
-            <p className="text-gray-500 text-sm">
-              © {new Date().getFullYear()} CASCADE Events. All rights reserved.
-            </p>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500">
+              <Link to="/privacy" className="hover:text-white transition-colors">
+                Privacy
+              </Link>
+              <Link to="/faq" className="hover:text-white transition-colors">
+                FAQ
+              </Link>
+              <p>© {new Date().getFullYear()} CASCADE Events. All rights reserved.</p>
+            </div>
           </div>
         </div>
       </footer>
+
+      <ConsentNotice />
+      <ConfirmModal
+        open={signOutOpen}
+        title="Sign out?"
+        message="You will need to sign in again to register for events or open your dashboard."
+        confirmLabel="Sign out"
+        variant="danger"
+        onConfirm={confirmSignOut}
+        onCancel={() => setSignOutOpen(false)}
+      />
     </div>
   )
 }

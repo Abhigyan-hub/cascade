@@ -5,6 +5,9 @@ import { api } from '../../lib/api'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../lib/authContext'
+import FormAlert from '../../components/FormAlert'
+import ConfirmModal from '../../components/ConfirmModal'
+import PageHeader from '../../components/PageHeader'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -24,6 +27,9 @@ export default function CreateEvent() {
   const [formFields, setFormFields] = useState([])
   const [images, setImages] = useState([])
   const [imageFiles, setImageFiles] = useState([])
+  const [formError, setFormError] = useState('')
+  const [formSuccess, setFormSuccess] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -75,10 +81,17 @@ export default function CreateEvent() {
   async function handleSubmit(e) {
     e.preventDefault()
     e.stopPropagation()
-    
+    if (!profile?.id || loading) return
+    setFormError('')
+    setFormSuccess('')
+    setConfirmOpen(true)
+  }
+
+  async function confirmCreate() {
     if (!profile?.id || loading) return
 
     setLoading(true)
+    setFormError('')
     try {
       const event = await api('/api/events', {
         method: 'POST',
@@ -107,13 +120,27 @@ export default function CreateEvent() {
       if (imageFiles.length) {
         const fd = new FormData()
         imageFiles.forEach((file) => fd.append('images', file))
-        await api(`/api/events/${eventId}/images`, { method: 'POST', body: fd })
+        try {
+          await api(`/api/events/${eventId}/images`, { method: 'POST', body: fd })
+        } catch (imgErr) {
+          setConfirmOpen(false)
+          setFormSuccess('Event created, but images were not uploaded.')
+          setFormError(imgErr.message || 'Could not upload images')
+          toast.error(imgErr.message || 'Event saved without images')
+          navigate({ to: '/admin' })
+          return
+        }
       }
 
+      setConfirmOpen(false)
+      setFormSuccess('Event created. Opening admin dashboard…')
       toast.success('Event created successfully!')
       navigate({ to: '/admin' })
     } catch (err) {
-      toast.error(err.message || 'Failed to create event')
+      const message = err.message || 'Failed to create event'
+      setFormError(message)
+      toast.error(message)
+      setConfirmOpen(false)
     } finally {
       setLoading(false)
     }
@@ -125,9 +152,11 @@ export default function CreateEvent() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-2xl font-bold text-white mb-8">Create Event</h1>
+        <PageHeader compact title="Create Event" subtitle="Add details, images, and registration fields" />
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {formError && <FormAlert type="error" title="Could not create event">{formError}</FormAlert>}
+          {formSuccess && <FormAlert type="success" title="Event created">{formSuccess}</FormAlert>}
           <div className="card p-6 space-y-6">
             <h2 className="text-lg font-semibold text-white">Basic Details</h2>
             <div>
@@ -320,6 +349,19 @@ export default function CreateEvent() {
             </button>
           </div>
         </form>
+        <ConfirmModal
+          open={confirmOpen}
+          title="Create this event?"
+          message={
+            form.is_published
+              ? `"${form.name || 'Untitled'}" will be published and visible to students.`
+              : `"${form.name || 'Untitled'}" will be saved as a draft.`
+          }
+          confirmLabel="Create event"
+          loading={loading}
+          onConfirm={confirmCreate}
+          onCancel={() => !loading && setConfirmOpen(false)}
+        />
       </motion.div>
     </div>
   )

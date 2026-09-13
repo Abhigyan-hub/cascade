@@ -23,7 +23,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        sans: ['system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       boxShadow: {
         'cascade': '0 4px 20px rgba(168, 85, 247, 0.15)',

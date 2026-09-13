@@ -1,8 +1,8 @@
-const TOKEN_KEY = 'cascade_token'
+import { getApiBase } from './hosts'
 
-export function getApiBase() {
-  return String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-}
+export { getApiBase }
+
+const TOKEN_KEY = 'cascade_token'
 
 export function getToken() {
   try {
@@ -31,7 +31,13 @@ export async function api(path, options = {}) {
   if (token) headers.Authorization = `Bearer ${token}`
 
   const res = await fetch(`${getApiBase()}${path}`, { ...options, headers })
-  const data = await res.json().catch(() => ({}))
+  const raw = await res.text()
+  let data = {}
+  try {
+    data = raw ? JSON.parse(raw) : {}
+  } catch {
+    data = { message: raw.slice(0, 300) || `Request failed (${res.status})` }
+  }
   if (!res.ok) {
     const err = new Error(data.message || data.error || `Request failed (${res.status})`)
     err.status = res.status

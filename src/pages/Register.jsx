@@ -6,6 +6,9 @@ import { api } from '../lib/api'
 import { createRazorpayOrder } from '../lib/razorpay'
 import toast from 'react-hot-toast'
 import { useAuth } from '../lib/authContext'
+import FormAlert from '../components/FormAlert'
+import ConfirmModal from '../components/ConfirmModal'
+import { CheckCircle } from 'lucide-react'
 
 function DynamicFormField({ field, register, errors }) {
   const { field_key, field_label, field_type, options, is_required } = field
@@ -24,7 +27,7 @@ function DynamicFormField({ field, register, errors }) {
             {...register(field_key, { 
               required: required ? `${field_label} is required` : false 
             })}
-            className="input-cascade min-h-[100px]"
+            className={`input-cascade min-h-[100px] ${errors[field_key] ? 'input-cascade-error' : ''}`}
             placeholder={field_label}
           />
           {errors[field_key] && <p className="text-red-400 text-sm mt-1">{errors[field_key].message || 'Required'}</p>}
@@ -48,7 +51,7 @@ function DynamicFormField({ field, register, errors }) {
                 return true
               }
             })}
-            className="input-cascade"
+            className={`input-cascade ${errors[field_key] ? 'input-cascade-error' : ''}`}
           >
             <option value="">Select...</option>
             {selectOpts.map((opt) => (
@@ -81,7 +84,7 @@ function DynamicFormField({ field, register, errors }) {
               required: required ? `${field_label} is required` : false 
             })}
             type={field_type === 'email' ? 'email' : field_type === 'number' ? 'number' : 'text'}
-            className="input-cascade"
+            className={`input-cascade ${errors[field_key] ? 'input-cascade-error' : ''}`}
             placeholder={field_label}
           />
           {errors[field_key] && <p className="text-red-400 text-sm mt-1">{errors[field_key].message || 'Required'}</p>}
@@ -98,6 +101,9 @@ export default function Register() {
   const [formFields, setFormFields] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadingPage, setLoadingPage] = useState(true)
+  const [formError, setFormError] = useState('')
+  const [pendingData, setPendingData] = useState(null)
+  const [success, setSuccess] = useState(null)
 
   const { register, handleSubmit, formState: { errors }, trigger } = useForm()
 
@@ -118,47 +124,54 @@ export default function Register() {
 
   async function onSubmit(formData) {
     if (!event || !profile || loading) return
+    setFormError('')
 
-    // Explicitly validate all required fields before submission
     const requiredFields = formFields.filter(f => f.is_required === true || f.is_required === 'true')
     const missingFields = []
 
     for (const field of requiredFields) {
       const value = formData[field.field_key]
-      // Check if field is empty (null, undefined, empty string, or empty array)
       if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
         missingFields.push(field.field_label || field.field_key)
       }
     }
 
     if (missingFields.length > 0) {
-      toast.error(`Please fill all required fields: ${missingFields.join(', ')}`)
-      // Trigger validation to show error messages
+      const message = `Please fill all required fields: ${missingFields.join(', ')}`
+      setFormError(message)
+      toast.error(message)
       await trigger()
       return
     }
 
     const isPaid = event.fee_amount > 0
 
-    // Check payment gateway configuration BEFORE inserting registration for paid events
     if (isPaid) {
       const frontendKey = import.meta.env.VITE_RAZORPAY_KEY_ID
       if (!frontendKey) {
-        toast.error(
-          'Payment gateway not configured on frontend. Please set VITE_RAZORPAY_KEY_ID in environment variables. See RAZORPAY_SETUP.md for instructions.',
-          { duration: 10000 }
-        )
+        const message = 'Payment gateway is not configured. You cannot complete paid registration yet.'
+        setFormError(message)
+        toast.error(message, { duration: 10000 })
         return
       }
     }
 
+    setPendingData(formData)
+  }
+
+  async function confirmSubmit() {
+    if (!event || !profile || !pendingData) return
+    const formData = pendingData
+    const isPaid = event.fee_amount > 0
     setLoading(true)
+    setFormError('')
 
     try {
       const { registration } = await api('/api/registrations', {
         method: 'POST',
         body: JSON.stringify({ event_id: eventId, form_data: formData }),
       })
+      setPendingData(null)
 
       if (isPaid) {
         try {
@@ -180,9 +193,12 @@ export default function Register() {
       }
 
       toast.success('Registration successful!')
-      navigate({ to: '/dashboard' })
+      setSuccess({ eventName: event.name })
     } catch (err) {
-      toast.error(err.message || 'Something went wrong')
+      const message = err.message || 'Something went wrong'
+      setFormError(message)
+      toast.error(message)
+      setPendingData(null)
     } finally {
       setLoading(false)
     }
@@ -212,6 +228,31 @@ export default function Register() {
 
   const feeDisplay = event.fee_amount === 0 ? 'Free' : `₹${(event.fee_amount / 100).toLocaleString('en-IN')}`
 
+  if (success) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card p-8 text-center"
+        >
+          <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+          <FormAlert type="success" title="Registration submitted">
+            You are registered for {success.eventName}.
+          </FormAlert>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/dashboard" className="btn-primary">
+              View dashboard
+            </Link>
+            <Link to="/" className="btn-secondary">
+              Browse events
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <motion.div
@@ -230,6 +271,12 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {formError && (
+            <FormAlert type="error" title="Could not register">
+              {formError}
+            </FormAlert>
+          )}
+
           {formFields.map((field) => (
             <DynamicFormField
               key={field.id}
@@ -258,6 +305,20 @@ export default function Register() {
           </div>
         </form>
       </motion.div>
+
+      <ConfirmModal
+        open={!!pendingData}
+        title="Submit registration?"
+        message={
+          event.fee_amount > 0
+            ? `You will register for ${event.name} and continue to payment (${feeDisplay}).`
+            : `Submit your registration for ${event.name}?`
+        }
+        confirmLabel={event.fee_amount > 0 ? 'Continue to payment' : 'Submit'}
+        loading={loading}
+        onConfirm={confirmSubmit}
+        onCancel={() => !loading && setPendingData(null)}
+      />
     </div>
   )
 }

@@ -5,6 +5,8 @@ import { api } from '../../lib/api'
 import { Calendar, CheckCircle, XCircle, Clock, IndianRupee } from 'lucide-react'
 import { format } from 'date-fns'
 import { useAuth } from '../../lib/authContext'
+import PageHeader from '../../components/PageHeader'
+import FormAlert from '../../components/FormAlert'
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'text-cascade-gold', icon: Clock },
@@ -76,12 +78,16 @@ export default function ClientDashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-3xl font-bold text-white mb-2">My Dashboard</h1>
-        <p className="text-gray-500">Welcome back, {profile?.full_name || 'User'}</p>
+        <PageHeader
+          title="My Dashboard"
+          subtitle={`Welcome back, ${profile?.full_name || 'User'}`}
+        />
 
         {error && (
-          <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <p className="text-red-400 text-sm">{error}</p>
+          <div className="mb-6">
+            <FormAlert type="error" title="Could not load registrations">
+              {error}
+            </FormAlert>
           </div>
         )}
 
@@ -154,8 +160,12 @@ function RegistrationCard({ registration }) {
 
   const feeDisplay = event.fee_amount === 0 ? 'Free' : `₹${(event.fee_amount / 100).toLocaleString('en-IN')}`
   const payment = registration.payments?.[0]
-  const paymentOk = !event.fee_amount || (payment?.status === 'captured')
-  const needsPayment = event.fee_amount > 0 && (!payment || payment.status !== 'captured')
+  const paymentOk = payment?.status === 'captured'
+  const rejected = registration.status === 'rejected'
+  const needsPayment =
+    !rejected &&
+    event.fee_amount > 0 &&
+    !paymentOk
 
   return (
     <motion.div
@@ -176,7 +186,7 @@ function RegistrationCard({ registration }) {
         </p>
         <p className="text-gray-400 text-sm mt-1">
           {feeDisplay}
-          {event.fee_amount > 0 && payment && (
+          {event.fee_amount > 0 && !rejected && (
             <span className={paymentOk ? ' text-green-400 ml-2' : ' text-cascade-gold ml-2'}>
               • {paymentOk ? 'Paid' : 'Payment pending'}
             </span>

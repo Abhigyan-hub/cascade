@@ -135,7 +135,7 @@ PORT=4000
 HOST=0.0.0.0
 DATABASE_URL=postgres://MASTERUSER:URLENCODED_PASSWORD@RDS_ENDPOINT:5432/cascade
 JWT_SECRET=long-random-string
-FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
+FRONTEND_ORIGIN=https://cascade.mozartdev.in,http://localhost:5173,http://127.0.0.1:5173
 RAZORPAY_KEY_ID=rzp_test_...
 RAZORPAY_KEY_SECRET=...
 RAZORPAY_WEBHOOK_SECRET=...
@@ -162,20 +162,20 @@ sudo systemctl status cascade-api
 curl -s http://127.0.0.1:4000/api/health
 ```
 
-From your laptop:
+From your laptop (after TLS):
 
 ```powershell
-curl http://YOUR_EC2_PUBLIC_IP:4000/api/health
+Invoke-RestMethod https://api.cascade.mozartdev.in/api/health
 ```
 
-You should see `{"ok":true}`. If it times out, the instance SG is not allowing **your** IP on port 4000.
+On the instance, Node is only `http://127.0.0.1:4000`. Do not open port 4000 to the internet.
 
 ## 5. Local frontend
 
 In the project root `.env.local` (not committed):
 
 ```
-VITE_API_URL=http://YOUR_EC2_PUBLIC_IP:4000
+VITE_API_URL=https://api.cascade.mozartdev.in
 VITE_RAZORPAY_KEY_ID=rzp_test_xxxx
 ```
 
@@ -193,18 +193,18 @@ psql "$DATABASE_URL" -c "UPDATE users SET role = 'developer' WHERE email = 'you@
 
 Or any SQL client that you run **on EC2** (not from home unless RDS is public).
 
-## 6. Razorpay webhook (optional until you test paid events)
+## 6. Razorpay webhook
 
-Dashboard → Webhooks → `http://YOUR_EC2_PUBLIC_IP:4000/api/payments/webhook`  
-(Use HTTPS later; Razorpay may require HTTPS in live mode.)
+Dashboard → Webhooks → `https://api.cascade.mozartdev.in/api/payments/webhook`
 
 ## Checklist
 
 - [ ] RDS and EC2 in the same VPC
 - [ ] 5432 only from EC2 SG
-- [ ] 4000 and 22 only from your home IP
+- [ ] Public 443/80 on EC2; 22 from your IP; **4000 not public**
+- [ ] DNS `cascade.mozartdev.in` → frontend; `api.cascade.mozartdev.in` → EC2
 - [ ] `npm run db:init` succeeded on EC2
-- [ ] `curl` health from laptop works
-- [ ] `.env.local` `VITE_API_URL` is the EC2 URL (no trailing slash)
+- [ ] `https://api.cascade.mozartdev.in/api/health` returns `{"ok":true}`
+- [ ] `.env.local` / Vercel `VITE_API_URL=https://api.cascade.mozartdev.in`
 - [ ] IAM role on EC2 for S3 (no keys in git)
 - [ ] RDS password not in GitHub

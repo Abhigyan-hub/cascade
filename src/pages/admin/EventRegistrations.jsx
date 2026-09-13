@@ -6,6 +6,8 @@ import { CheckCircle, XCircle, Clock, ChevronLeft, User } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../lib/authContext'
+import ConfirmModal from '../../components/ConfirmModal'
+import PageHeader from '../../components/PageHeader'
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'text-cascade-gold', icon: Clock },
@@ -25,6 +27,7 @@ export default function EventRegistrations() {
   const [historyRegs, setHistoryRegs] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(new Set())
+  const [pendingStatus, setPendingStatus] = useState(null)
 
   useEffect(() => {
     async function fetch() {
@@ -115,13 +118,16 @@ export default function EventRegistrations() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Link
           to="/admin"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6"
+          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-4"
         >
           <ChevronLeft className="w-4 h-4" />
           Back to Admin
         </Link>
-        <h1 className="text-2xl font-bold text-white mb-2">Registrations for {event?.name}</h1>
-        <p className="text-gray-500 mb-8">{registrations.length} total registrations</p>
+        <PageHeader
+          compact
+          title={`Registrations for ${event?.name || 'event'}`}
+          subtitle={`${registrations.length} total registrations`}
+        />
 
         {loading ? (
           <div className="space-y-4">
@@ -142,8 +148,20 @@ export default function EventRegistrations() {
                     <RegistrationRow
                       key={reg.id}
                       registration={reg}
-                      onAccept={() => updateStatus(reg.id, 'accepted')}
-                      onReject={() => updateStatus(reg.id, 'rejected')}
+                      onAccept={() =>
+                        setPendingStatus({
+                          id: reg.id,
+                          status: 'accepted',
+                          name: reg.profiles?.full_name || 'this participant',
+                        })
+                      }
+                      onReject={() =>
+                        setPendingStatus({
+                          id: reg.id,
+                          status: 'rejected',
+                          name: reg.profiles?.full_name || 'this participant',
+                        })
+                      }
                       onViewHistory={openHistory}
                       updatingStatus={updatingStatus}
                     />
@@ -173,6 +191,25 @@ export default function EventRegistrations() {
           </div>
         )}
       </motion.div>
+
+      <ConfirmModal
+        open={!!pendingStatus}
+        title={pendingStatus?.status === 'accepted' ? 'Accept registration?' : 'Reject registration?'}
+        message={
+          pendingStatus?.status === 'accepted'
+            ? `Accept ${pendingStatus?.name} for this event?`
+            : `Reject ${pendingStatus?.name} for this event?`
+        }
+        confirmLabel={pendingStatus?.status === 'accepted' ? 'Accept' : 'Reject'}
+        variant={pendingStatus?.status === 'rejected' ? 'danger' : 'primary'}
+        loading={pendingStatus ? updatingStatus.has(pendingStatus.id) : false}
+        onConfirm={async () => {
+          if (!pendingStatus) return
+          await updateStatus(pendingStatus.id, pendingStatus.status)
+          setPendingStatus(null)
+        }}
+        onCancel={() => setPendingStatus(null)}
+      />
 
       {historyOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
