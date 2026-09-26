@@ -8,8 +8,6 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../../lib/authContext'
 import ConfirmModal from '../../components/ConfirmModal'
 import PageHeader from '../../components/PageHeader'
-import FormAlert from '../../components/FormAlert'
-import { toUserMessage, USER_MESSAGES } from '../../lib/userMessage'
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'text-cascade-gold', icon: Clock },
@@ -30,18 +28,18 @@ export default function EventRegistrations() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(new Set())
   const [pendingStatus, setPendingStatus] = useState(null)
-  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     async function fetch() {
       try {
+        console.log('Fetching registrations for event:', eventId)
+        
         const data = await api(`/api/registrations/event/${eventId}`)
         setEvent(data.event)
         setRegistrations(data.registrations || [])
-        setLoadError('')
       } catch (err) {
-        setLoadError(toUserMessage(err, USER_MESSAGES.loadPage))
-        toast.error(toUserMessage(err, 'We could not load registrations. Please try again.'))
+        console.error('Exception in EventRegistrations fetch:', err)
+        toast.error('An unexpected error occurred')
         setRegistrations([])
       } finally {
         setLoading(false)
@@ -58,7 +56,8 @@ export default function EventRegistrations() {
     try {
       const data = await api(`/api/registrations/user/${user.id}/history`)
       setHistoryRegs(data || [])
-    } catch {
+    } catch (err) {
+      console.error('Exception fetching user registration history:', err)
       setHistoryRegs([])
     } finally {
       setHistoryLoading(false)
@@ -70,6 +69,7 @@ export default function EventRegistrations() {
     
     // Prevent duplicate clicks - check if already updating
     if (updatingStatus.has(regId)) {
+      console.log('Status update already in progress for:', regId)
       return
     }
     
@@ -85,9 +85,10 @@ export default function EventRegistrations() {
       setRegistrations((prev) =>
         prev.map((r) => (r.id === regId ? { ...r, status, status_notes: notes, status_updated_at: new Date().toISOString() } : r))
       )
-      toast.success(status === 'accepted' ? 'Registration accepted' : 'Registration declined')
+      toast.success(`Registration ${status}`)
     } catch (err) {
-      toast.error(toUserMessage(err, 'We could not update that registration. Please try again.'))
+      console.error('Error updating status:', err)
+      toast.error('Failed to update status')
     } finally {
       // Remove from updating set
       setUpdatingStatus((prev) => {
@@ -101,9 +102,7 @@ export default function EventRegistrations() {
   if (!event && !loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <FormAlert type="error" title="Could not open registrations">
-          {loadError || 'This event is not available.'}
-        </FormAlert>
+        <p className="text-gray-500">Event not found.</p>
         <Link to="/admin" className="text-cascade-purple hover:underline mt-4 inline-block">
           Back to admin
         </Link>
@@ -149,7 +148,6 @@ export default function EventRegistrations() {
                     <RegistrationRow
                       key={reg.id}
                       registration={reg}
-                      formFields={event?.form_fields || []}
                       onAccept={() =>
                         setPendingStatus({
                           id: reg.id,
@@ -179,7 +177,6 @@ export default function EventRegistrations() {
                     <RegistrationRow
                       key={reg.id}
                       registration={reg}
-                      formFields={event?.form_fields || []}
                       readOnly
                       onViewHistory={openHistory}
                       updatingStatus={updatingStatus}
@@ -267,15 +264,7 @@ export default function EventRegistrations() {
   )
 }
 
-function RegistrationRow({
-  registration,
-  formFields = [],
-  onAccept,
-  onReject,
-  readOnly,
-  onViewHistory,
-  updatingStatus = new Set(),
-}) {
+function RegistrationRow({ registration, onAccept, onReject, readOnly, onViewHistory, updatingStatus = new Set() }) {
   const config = statusConfig[registration.status] || statusConfig.pending
   const StatusIcon = config.icon
   const user = registration.profiles
@@ -299,16 +288,12 @@ function RegistrationRow({
           </p>
           {Object.keys(registration.form_data || {}).length > 0 && (
             <div className="mt-3 p-3 rounded-lg bg-cascade-dark text-sm">
-              {Object.entries(registration.form_data).map(([k, v]) => {
-                const field = formFields.find((f) => f.field_key === k)
-
-                return (
-                  <div key={k} className="flex gap-2">
-                    <span className="text-gray-500">{field?.field_label || k}:</span>
-                    <span className="text-gray-300">{String(v)}</span>
-                  </div>
-                )
-              })}
+              {Object.entries(registration.form_data).map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <span className="text-gray-500">{k}:</span>
+                  <span className="text-gray-300">{String(v)}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
