@@ -47,9 +47,11 @@ export default function Layout() {
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cascade-purple to-cascade-purple-dark flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-white" />
-              </div>
+              <img
+                    src="/cascade-logo.png"
+                    alt="CASCADE"
+                    className="h-12 w-auto object-contain"
+                    />
               <span className="font-bold text-xl text-white group-hover:text-cascade-purple-light transition-colors">
                 CASCADE
               </span>
@@ -175,9 +177,11 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-cascade-purple/20 flex items-center justify-center">
-                <Calendar className="w-4 h-4 text-cascade-purple" />
-              </div>
+              <img
+                src="/cascade-logo.png"
+                alt="CASCADE"
+                className="h-12 w-auto object-contain"
+              />
               <span className="font-semibold text-cascade-purple">CASCADE</span>
               <span className="text-gray-500 text-sm">Department of CSE & AI • GHRSTU</span>
             </div>
