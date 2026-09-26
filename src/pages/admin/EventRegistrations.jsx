@@ -9,7 +9,7 @@ import { useAuth } from '../../lib/authContext'
 import ConfirmModal from '../../components/ConfirmModal'
 import PageHeader from '../../components/PageHeader'
 import FormAlert from '../../components/FormAlert'
-import { toUserMessage, USER_MESSAGES } from '../../lib/userMessage'
+
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'text-cascade-gold', icon: Clock },
@@ -40,8 +40,8 @@ export default function EventRegistrations() {
         setRegistrations(data.registrations || [])
         setLoadError('')
       } catch (err) {
-        setLoadError(toUserMessage(err, USER_MESSAGES.loadPage))
-        toast.error(toUserMessage(err, 'We could not load registrations. Please try again.'))
+        setLoadError(err?.message || 'This event is not available.')
+        toast.error(err?.message || 'We could not load registrations. Please try again.')
         setRegistrations([])
       } finally {
         setLoading(false)
@@ -87,7 +87,7 @@ export default function EventRegistrations() {
       )
       toast.success(status === 'accepted' ? 'Registration accepted' : 'Registration declined')
     } catch (err) {
-      toast.error(toUserMessage(err, 'We could not update that registration. Please try again.'))
+      toast.error(err?.message || 'We could not update that registration. Please try again.')
     } finally {
       // Remove from updating set
       setUpdatingStatus((prev) => {
