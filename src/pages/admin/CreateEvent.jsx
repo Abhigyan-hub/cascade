@@ -9,6 +9,7 @@ import FormAlert from '../../components/FormAlert'
 import ConfirmModal from '../../components/ConfirmModal'
 import PageHeader from '../../components/PageHeader'
 import { toUserMessage, USER_MESSAGES } from '../../lib/userMessage'
+import { istDatetimeLocalToIso } from '../../lib/ist'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -100,7 +101,7 @@ export default function CreateEvent() {
           name: form.name,
           description: form.description || null,
           fee_amount: Math.round(Number(form.fee_amount) * 100) || 0,
-          event_date: form.event_date || null,
+          event_date: istDatetimeLocalToIso(form.event_date),
           venue: form.venue || null,
           max_registrations: form.max_registrations ? Number(form.max_registrations) : null,
           is_published: form.is_published,
@@ -191,7 +192,7 @@ export default function CreateEvent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Event Date & Time *</label>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Event date and time (IST) *</label>
                 <input
                   type="datetime-local"
                   value={form.event_date}
@@ -199,6 +200,7 @@ export default function CreateEvent() {
                   className="input-cascade"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">India Standard Time (UTC+5:30)</p>
               </div>
             </div>
             <div>
