@@ -150,6 +150,7 @@ export default function EventRegistrations() {
                       key={reg.id}
                       registration={reg}
                       formFields={event?.form_fields || []}
+                      feeAmount={event?.fee_amount || 0}
                       onAccept={() =>
                         setPendingStatus({
                           id: reg.id,
@@ -180,6 +181,7 @@ export default function EventRegistrations() {
                       key={reg.id}
                       registration={reg}
                       formFields={event?.form_fields || []}
+                      feeAmount={event?.fee_amount || 0}
                       readOnly
                       onViewHistory={openHistory}
                       updatingStatus={updatingStatus}
@@ -267,9 +269,28 @@ export default function EventRegistrations() {
   )
 }
 
+function paymentSummary(registration, feeAmount) {
+  if (!feeAmount) {
+    return { label: 'Free event', className: 'text-gray-400' }
+  }
+  const pay = registration.payment
+  if (!pay) {
+    return { label: 'No payment yet', className: 'text-gray-500' }
+  }
+  const rupees = `₹${((pay.amount_paise || 0) / 100).toLocaleString('en-IN')}`
+  if (pay.status === 'captured') {
+    return { label: `Paid ${rupees}`, className: 'text-green-400' }
+  }
+  if (pay.status === 'pending') {
+    return { label: `Payment pending ${rupees}`, className: 'text-cascade-gold' }
+  }
+  return { label: `Payment ${pay.status} ${rupees}`, className: 'text-gray-400' }
+}
+
 function RegistrationRow({
   registration,
   formFields = [],
+  feeAmount = 0,
   onAccept,
   onReject,
   readOnly,
@@ -280,6 +301,7 @@ function RegistrationRow({
   const StatusIcon = config.icon
   const user = registration.profiles
   const isUpdating = updatingStatus.has(registration.id)
+  const pay = paymentSummary(registration, feeAmount)
 
   return (
     <motion.div
@@ -297,6 +319,12 @@ function RegistrationRow({
           <p className="text-gray-400 text-sm mt-1">
             Registered {format(new Date(registration.created_at), 'MMM d, yyyy h:mm a')}
           </p>
+          <p className={`text-sm mt-2 font-medium ${pay.className}`}>{pay.label}</p>
+          {registration.payment?.razorpay_payment_id ? (
+            <p className="text-gray-500 text-xs mt-1 break-all">
+              Razorpay {registration.payment.razorpay_payment_id}
+            </p>
+          ) : null}
           {Object.keys(registration.form_data || {}).length > 0 && (
             <div className="mt-3 p-3 rounded-lg bg-cascade-dark text-sm">
               {Object.entries(registration.form_data).map(([k, v]) => {
