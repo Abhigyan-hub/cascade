@@ -1,6 +1,8 @@
 /** Production Cascade hosts. Portfolio (www.mozartdev.in) is a separate site. */
 export const PRODUCTION_FRONTEND_ORIGIN = 'https://cascade.mozartdev.in'
 export const PRODUCTION_API_ORIGIN = 'https://api.cascade.mozartdev.in'
+export const PRODUCTION_CHECKOUT_ORIGIN = 'https://www.mozartdev.in'
+export const PRODUCTION_CHECKOUT_PATH = '/cascade-pay.html'
 
 function isPublicHttpsOrigin(url) {
   try {
@@ -23,4 +25,21 @@ export function getApiBase() {
     return PRODUCTION_API_ORIGIN
   }
   return fromEnv
+}
+
+/** Host that may open Razorpay Checkout (dashboard website URL). Empty = this origin. */
+export function getRazorpayCheckoutOrigin() {
+  const fromEnv = String(import.meta.env.VITE_RAZORPAY_CHECKOUT_ORIGIN || '')
+    .trim()
+    .replace(/\/$/, '')
+  if (fromEnv === 'local' || fromEnv === 'self') return ''
+  if (fromEnv && isPublicHttpsOrigin(fromEnv)) return fromEnv
+  if (import.meta.env.PROD) return PRODUCTION_CHECKOUT_ORIGIN
+  return ''
+}
+
+export function getRazorpayCheckoutPath() {
+  const fromEnv = String(import.meta.env.VITE_RAZORPAY_CHECKOUT_PATH || '').trim()
+  if (fromEnv.startsWith('/')) return fromEnv
+  return PRODUCTION_CHECKOUT_PATH
 }

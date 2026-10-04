@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/authContext'
 import FormAlert from '../../components/FormAlert'
 import ConfirmModal from '../../components/ConfirmModal'
 import PageHeader from '../../components/PageHeader'
+import { toUserMessage, USER_MESSAGES } from '../../lib/userMessage'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -125,8 +126,8 @@ export default function CreateEvent() {
         } catch (imgErr) {
           setConfirmOpen(false)
           setFormSuccess('Event created, but images were not uploaded.')
-          setFormError(imgErr.message || 'Could not upload images')
-          toast.error(imgErr.message || 'Event saved without images')
+          setFormError(toUserMessage(imgErr, USER_MESSAGES.upload))
+          toast.error(toUserMessage(imgErr, 'Event saved, but images were not uploaded.'))
           navigate({ to: '/admin' })
           return
         }
@@ -137,7 +138,7 @@ export default function CreateEvent() {
       toast.success('Event created successfully!')
       navigate({ to: '/admin' })
     } catch (err) {
-      const message = err.message || 'Failed to create event'
+      const message = toUserMessage(err, 'We could not create this event. Please try again.')
       setFormError(message)
       toast.error(message)
       setConfirmOpen(false)

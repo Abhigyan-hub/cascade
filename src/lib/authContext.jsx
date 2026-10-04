@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
         setProfile(null)
         setAuthError(null)
       } else {
-        setAuthError(e.message || 'Auth error')
+        setAuthError('We could not refresh your session. Check your connection and try again.')
       }
     } finally {
       setLoading(false)

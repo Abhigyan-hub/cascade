@@ -28,8 +28,7 @@ export default function Layout() {
 
   const confirmSignOut = () => {
     setSignOutOpen(false)
-    signOut().catch((err) => {
-      console.error('Sign out error (non-blocking):', err)
+    signOut().catch(() => {
       window.location.href = '/login'
     })
   }
@@ -48,10 +47,10 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2 group">
               <img
-                    src="/cascade-logo.png"
-                    alt="CASCADE"
-                    className="h-12 w-auto object-contain"
-                    />
+                src="/cascade-logo.png"
+                alt=""
+                className="h-8 w-auto object-contain"
+              />
               <span className="font-bold text-xl text-white group-hover:text-cascade-purple-light transition-colors">
                 CASCADE
               </span>

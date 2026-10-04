@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { api } from '../lib/api'
-import { createRazorpayOrder, openRazorpayCheckoutWithCallback } from '../lib/razorpay'
+import { createRazorpayOrder, startRazorpayCheckout } from '../lib/razorpay'
 import toast from 'react-hot-toast'
 import { useAuth } from '../lib/authContext'
-import { Loader2, CheckCircle2, XCircle, CreditCard, AlertCircle } from 'lucide-react'
+import { toUserMessage, USER_MESSAGES } from '../lib/userMessage'
+import { Loader2, CheckCircle2, XCircle, CreditCard } from 'lucide-react'
 
 export default function Payment() {
   const search = useSearch({ strict: false })
@@ -24,7 +25,7 @@ export default function Payment() {
 
   useEffect(() => {
     if (!registrationId || !eventId) {
-      setError('Invalid payment link. Missing registration or event ID.')
+      setError('This payment link is incomplete. Open payment from your dashboard.')
       setLoading(false)
       return
     }
@@ -42,13 +43,13 @@ export default function Payment() {
         setPayment(pay)
 
         if (reg.status === 'rejected') {
-          setError('This registration was rejected. You cannot pay for it.')
+          setError('This registration was not accepted, so payment is not available.')
           setLoading(false)
           return
         }
 
         if (pay?.status === 'captured') {
-          toast.success('Payment already completed')
+          toast.success('This payment is already complete')
           navigate({ to: '/dashboard' })
           return
         }
@@ -61,8 +62,7 @@ export default function Payment() {
 
         setLoading(false)
       } catch (err) {
-        console.error('Error loading payment data:', err)
-        setError(err.message || 'Failed to load payment information')
+        setError(toUserMessage(err, USER_MESSAGES.payment))
         setLoading(false)
       }
     }
@@ -77,23 +77,13 @@ export default function Payment() {
       const result = await createRazorpayOrder(registrationId, ev?.fee_amount || 0)
       setOrderId(result.orderId)
     } catch (err) {
-      console.error('Order creation error:', err)
-      const errorMsg = err.message || 'Could not create payment order'
-      if (errorMsg.includes('not configured') || errorMsg.includes('gateway') || errorMsg.includes('API keys')) {
-        setError('PAYMENT_GATEWAY_NOT_CONFIGURED')
-      } else if (err.status === 404) {
-        setError('API_ENDPOINT_NOT_FOUND')
-      } else if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError')) {
-        setError('Network error. Please check your internet connection and VITE_API_URL setting.')
-      } else {
-        setError(`Failed to create order: ${errorMsg}`)
-      }
+      setError(toUserMessage(err, USER_MESSAGES.paymentUnavailable))
     }
   }
 
   async function handlePayment() {
     if (!orderId || !event || !profile) {
-      toast.error('Payment information not ready')
+      toast.error('Payment is not ready yet. Please wait a moment and try again.')
       return
     }
 
@@ -101,16 +91,14 @@ export default function Payment() {
     setError(null)
 
     try {
-      // Check Razorpay key
       const frontendKey = import.meta.env.VITE_RAZORPAY_KEY_ID
       if (!frontendKey) {
-        setError('PAYMENT_GATEWAY_NOT_CONFIGURED')
+        setError(USER_MESSAGES.paymentUnavailable)
         setProcessing(false)
         return
       }
 
-      // Use callback URL method - redirects to callback page after payment
-      await openRazorpayCheckoutWithCallback({
+      await startRazorpayCheckout({
         orderId,
         amount: event.fee_amount,
         name: profile.full_name || 'CASCADE Events',
@@ -118,14 +106,17 @@ export default function Payment() {
         email: profile.email,
         registrationId: registrationId,
       })
-      
-      // Don't set processing to false - we're redirecting to callback page
-      // The callback page will handle verification and redirect
     } catch (err) {
-      console.error('Payment error:', err)
-      setError(err.message || 'Payment failed. Please try again.')
+      setError(toUserMessage(err, USER_MESSAGES.paymentFailed))
       setProcessing(false)
     }
+  }
+
+  async function retryOrder() {
+    setError(null)
+    setLoading(true)
+    await createOrder()
+    setLoading(false)
   }
 
   if (loading) {
@@ -133,13 +124,13 @@ export default function Payment() {
       <div className="min-h-[70vh] flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 animate-spin text-cascade-purple mx-auto" />
-          <p className="text-gray-500">Loading payment information...</p>
+          <p className="text-gray-500">Preparing your payment…</p>
         </div>
       </div>
     )
   }
 
-  if (error === 'API_ENDPOINT_NOT_FOUND') {
+  if (error && (!event || !registration || !orderId)) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <motion.div
@@ -148,95 +139,14 @@ export default function Payment() {
           className="card max-w-md w-full p-8 text-center"
         >
           <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Payment Error</h1>
-          <p className="text-gray-400 mb-6">Unable to create payment order. Please try again.</p>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => navigate({ to: '/dashboard' })}
-              className="btn-secondary"
-            >
-              Go to Dashboard
-            </button>
-            <button
-              onClick={async () => {
-                setError(null)
-                setLoading(true)
-                await createOrder()
-                setLoading(false)
-              }}
-              className="btn-primary"
-            >
-              Retry
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    )
-  }
-
-  if (error === 'PAYMENT_GATEWAY_NOT_CONFIGURED') {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card max-w-md w-full p-8 text-center"
-        >
-          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Payment Error</h1>
-          <p className="text-gray-400 mb-6">Payment gateway is not configured. Please try again later.</p>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => navigate({ to: '/dashboard' })}
-              className="btn-secondary"
-            >
-              Go to Dashboard
-            </button>
-            <button
-              onClick={async () => {
-                setError(null)
-                setLoading(true)
-                await createOrder()
-                setLoading(false)
-              }}
-              className="btn-primary"
-            >
-              Retry
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    )
-  }
-
-  if (error && error !== 'PAYMENT_GATEWAY_NOT_CONFIGURED' && error !== 'API_ENDPOINT_NOT_FOUND') {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card max-w-md w-full p-8 text-center"
-        >
-          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Payment Error</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Could not continue to payment</h1>
           <p className="text-gray-400 mb-6">{error}</p>
           <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => navigate({ to: '/dashboard' })}
-              className="btn-secondary"
-            >
-              Go to Dashboard
+            <button onClick={() => navigate({ to: '/dashboard' })} className="btn-secondary">
+              Go to dashboard
             </button>
-            <button
-              onClick={async () => {
-                setError(null)
-                setLoading(true)
-                await createOrder()
-                setLoading(false)
-              }}
-              className="btn-primary"
-            >
-              Retry
+            <button onClick={retryOrder} className="btn-primary">
+              Try again
             </button>
           </div>
         </motion.div>
@@ -246,8 +156,13 @@ export default function Payment() {
 
   if (!event || !registration) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <p className="text-gray-500">Invalid payment information</p>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="card max-w-md w-full p-8 text-center">
+          <p className="text-gray-400 mb-4">We could not load this payment. Open it again from your dashboard.</p>
+          <button onClick={() => navigate({ to: '/dashboard' })} className="btn-primary">
+            Go to dashboard
+          </button>
+        </div>
       </div>
     )
   }
@@ -268,34 +183,34 @@ export default function Payment() {
               <CreditCard className="w-8 h-8 text-cascade-purple" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Complete Payment</h1>
-          <p className="text-gray-400">Event Registration Payment</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Complete payment</h1>
+          <p className="text-gray-400">Event registration</p>
         </div>
 
         <div className="space-y-6 mb-8">
           <div className="bg-cascade-surface rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Event:</span>
-              <span className="text-white font-medium">{event.name}</span>
+            <div className="flex justify-between text-sm gap-3">
+              <span className="text-gray-400">Event</span>
+              <span className="text-white font-medium text-right">{event.name}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Registration ID:</span>
-              <span className="text-white font-mono text-xs">{registration.id.slice(0, 8)}...</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Status:</span>
-              <span className={`font-medium ${
-                registration.status === 'pending' ? 'text-yellow-400' :
-                registration.status === 'accepted' ? 'text-green-400' :
-                'text-gray-400'
-              }`}>
+              <span className="text-gray-400">Status</span>
+              <span
+                className={`font-medium ${
+                  registration.status === 'pending'
+                    ? 'text-yellow-400'
+                    : registration.status === 'accepted'
+                      ? 'text-green-400'
+                      : 'text-gray-400'
+                }`}
+              >
                 {registration.status.charAt(0).toUpperCase() + registration.status.slice(1)}
               </span>
             </div>
           </div>
 
           <div className="bg-cascade-purple/10 border border-cascade-purple/30 rounded-lg p-6 text-center">
-            <p className="text-gray-400 text-sm mb-2">Amount to Pay</p>
+            <p className="text-gray-400 text-sm mb-2">Amount to pay</p>
             <p className="text-3xl font-bold text-cascade-purple">{amountDisplay}</p>
           </div>
 
@@ -320,12 +235,12 @@ export default function Payment() {
           {processing ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Processing...
+              Opening payment…
             </>
           ) : payment?.status === 'captured' ? (
             <>
               <CheckCircle2 className="w-5 h-5" />
-              Payment Completed
+              Payment completed
             </>
           ) : (
             <>
@@ -335,26 +250,29 @@ export default function Payment() {
           )}
         </button>
 
-        <button
-          onClick={() => navigate({ to: '/dashboard' })}
-          className="btn-secondary w-full mt-3"
-        >
+        <button onClick={() => navigate({ to: '/dashboard' })} className="btn-secondary w-full mt-3">
           Cancel
         </button>
+        {import.meta.env.PROD ? (
+          <p className="text-xs text-gray-500 mt-3 text-center">
+            You will complete payment on mozartdev.in, then return here.
+          </p>
+        ) : null}
 
-        {error && error !== 'PAYMENT_GATEWAY_NOT_CONFIGURED' && error !== 'API_ENDPOINT_NOT_FOUND' && (
+        {error && (
           <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
-            <p className="text-red-400 text-sm mb-2">Payment error occurred</p>
+            <p className="text-red-300 text-sm mb-2">{error}</p>
             <button
+              type="button"
               onClick={async () => {
                 setError(null)
                 setProcessing(true)
                 await createOrder()
                 setProcessing(false)
               }}
-              className="text-red-300 text-sm underline hover:text-red-200"
+              className="text-red-200 text-sm underline hover:text-white"
             >
-              Retry
+              Try again
             </button>
           </div>
         )}

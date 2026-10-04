@@ -27,14 +27,16 @@ const rootRoute = createRootRoute({
       </AuthProvider>
     )
   },
-  errorComponent: function RouteError({ error }) {
+  errorComponent: function RouteError() {
     return (
       <div className="min-h-screen bg-[#050508] text-white flex items-center justify-center px-4">
         <div className="max-w-md text-center">
-          <h1 className="text-2xl font-bold mb-3">Something went wrong</h1>
-          <p className="text-gray-400 text-sm mb-6">{error?.message || 'The page failed to load.'}</p>
+          <h1 className="text-2xl font-bold mb-3">This page could not load</h1>
+          <p className="text-gray-400 text-sm mb-6">
+            Something went wrong on our side. Refresh the page, or go back to events.
+          </p>
           <a href="/" className="inline-block px-6 py-3 rounded-xl font-semibold bg-[#a855f7] text-white">
-            Reload home
+            Back to events
           </a>
         </div>
       </div>

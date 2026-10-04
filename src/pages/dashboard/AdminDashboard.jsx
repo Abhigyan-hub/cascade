@@ -8,6 +8,8 @@ import { useAuth } from '../../lib/authContext'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/ConfirmModal'
 import PageHeader from '../../components/PageHeader'
+import FormAlert from '../../components/FormAlert'
+import { toUserMessage, USER_MESSAGES } from '../../lib/userMessage'
 
 export default function AdminDashboard() {
   const { profile } = useAuth()
@@ -16,6 +18,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     if (!profile?.id) return
@@ -25,8 +28,9 @@ export default function AdminDashboard() {
         const { events: allEvents, stats: nextStats } = await api('/api/events/admin/mine')
         setEvents(allEvents || [])
         setStats(nextStats || { totalRegistrations: 0, pendingCount: 0 })
+        setLoadError('')
       } catch (err) {
-        console.error('Exception in AdminDashboard fetch:', err)
+        setLoadError(toUserMessage(err, USER_MESSAGES.loadPage))
       } finally {
         setLoading(false)
       }
@@ -45,7 +49,7 @@ export default function AdminDashboard() {
     setDeletingId(eventId)
     try {
       await api(`/api/events/${eventId}`, { method: 'DELETE' })
-      toast.success('Event deleted successfully')
+      toast.success('Event deleted')
       const remaining = events.filter((e) => e.id !== eventId)
       setEvents(remaining)
       setPendingDelete(null)
@@ -55,12 +59,11 @@ export default function AdminDashboard() {
       } else {
         setStats({ totalRegistrations: 0, pendingCount: 0 })
       }
-    } catch (err) {
-      console.error('Exception deleting event:', err)
-      toast.error('Failed to delete event')
-    } finally {
-      setDeletingId(null)
-    }
+      } catch (err) {
+        toast.error(toUserMessage(err, USER_MESSAGES.delete))
+      } finally {
+        setDeletingId(null)
+      }
   }
 
   return (
@@ -79,6 +82,14 @@ export default function AdminDashboard() {
             </Link>
           }
         />
+
+        {loadError && (
+          <div className="mb-6">
+            <FormAlert type="error" title="Could not load events">
+              {loadError}
+            </FormAlert>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <div className="card p-6">

@@ -5,6 +5,7 @@ import { signIn, resendVerification } from '../lib/auth'
 import { useAuth } from '../lib/authContext'
 import toast from 'react-hot-toast'
 import FormAlert from '../components/FormAlert'
+import { toUserMessage } from '../lib/userMessage'
 import { getCookieConsent, getRememberedUser, setRememberedUser, clearRememberedUser } from '../lib/preferences'
 
 export default function Login() {
@@ -37,7 +38,7 @@ export default function Login() {
     try {
       const { data, error } = await signIn(email, password)
       if (error) {
-        const message = error.message || 'Sign in failed. Please try again.'
+        const message = toUserMessage(error, 'We could not sign you in. Check your email and password.')
         setFormError(message)
         toast.error(message)
         if (error.data?.code === 'UNVERIFIED' || error.status === 403) {
@@ -56,7 +57,7 @@ export default function Login() {
       toast.success('Welcome back!')
       navigate({ to: from, replace: true })
     } catch (err) {
-      const message = err.message || 'An error occurred. Please try again.'
+      const message = toUserMessage(err, 'We could not sign you in. Please try again.')
       setFormError(message)
       toast.error(message)
     } finally {

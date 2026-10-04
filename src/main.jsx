@@ -2,11 +2,13 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import { RouterProvider } from '@tanstack/react-router'
+import ErrorBoundary from './components/ErrorBoundary'
 import { router } from './router'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    <ErrorBoundary>
     <RouterProvider router={router} />
     <Toaster
       position="top-right"
@@ -19,5 +21,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         },
       }}
     />
+    </ErrorBoundary>
   </React.StrictMode>
 )

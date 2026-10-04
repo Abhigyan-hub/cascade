@@ -1,4 +1,6 @@
 import { api } from './api'
+import { getRazorpayCheckoutOrigin, getRazorpayCheckoutPath } from './hosts'
+import { USER_MESSAGES } from './userMessage'
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -38,13 +40,42 @@ export async function verifyRazorpayPayment(registrationId, razorpayPaymentId, r
   })
 }
 
+export function buildRazorpayHandoffUrl(options) {
+  const origin = getRazorpayCheckoutOrigin()
+  if (!origin) return ''
+  const returnUrl = `${window.location.origin}/payment/callback`
+  const params = new URLSearchParams({
+    order_id: String(options.orderId || ''),
+    amount: String(options.amount || ''),
+    name: options.name || 'CASCADE Events',
+    description: options.description || 'Event Registration',
+    email: options.email || '',
+    registration_id: String(options.registrationId || ''),
+    key: String(import.meta.env.VITE_RAZORPAY_KEY_ID || ''),
+    return: returnUrl,
+  })
+  return `${origin}${getRazorpayCheckoutPath()}?${params.toString()}`
+}
+
+/** Production: send the student to www.mozartdev.in. Local: open Checkout here. */
+export async function startRazorpayCheckout(options) {
+  const handoffUrl = buildRazorpayHandoffUrl(options)
+  if (handoffUrl) {
+    window.location.assign(handoffUrl)
+    return
+  }
+  return openRazorpayCheckoutWithCallback(options)
+}
+
 export async function openRazorpayCheckoutWithCallback(options) {
   const { orderId, amount, name, description, email, registrationId } = options
   const baseUrl = window.location.origin
   const callbackUrl = `${baseUrl}/payment/callback`
   const Razorpay = await loadRazorpayScript()
   if (!Razorpay) {
-    throw new Error('Payment checkout could not load. Pause your ad blocker for this site and try again.')
+    throw new Error(
+      'The payment window could not open. Turn off any ad blocker for this site and try again.'
+    )
   }
 
   return new Promise((resolve, reject) => {
@@ -75,7 +106,7 @@ export async function openRazorpayCheckoutWithCallback(options) {
             razorpay_payment_status: 'cancelled',
           })
           window.location.href = `${callbackUrl}?${params.toString()}`
-          reject(new Error('Payment cancelled by user'))
+          reject(new Error(USER_MESSAGES.paymentCancel))
         },
       },
     })
@@ -84,11 +115,10 @@ export async function openRazorpayCheckoutWithCallback(options) {
       const params = new URLSearchParams({
         registration_id: registrationId,
         razorpay_payment_status: 'failed',
-        error: response.error?.description || 'Payment failed',
-        razorpay_order_id: orderId,
+        error: 'failed',
       })
       window.location.href = `${callbackUrl}?${params.toString()}`
-      reject(new Error(response.error?.description || 'Payment failed'))
+      reject(new Error(USER_MESSAGES.paymentFailed))
     })
 
     rzp.open()
@@ -98,7 +128,9 @@ export async function openRazorpayCheckoutWithCallback(options) {
 export async function openRazorpayCheckout(options) {
   const Razorpay = await loadRazorpayScript()
   if (!Razorpay) {
-    throw new Error('Payment checkout could not load. Pause your ad blocker for this site and try again.')
+    throw new Error(
+      'The payment window could not open. Turn off any ad blocker for this site and try again.'
+    )
   }
   return new Promise((resolve, reject) => {
     const rzp = new Razorpay({
@@ -113,7 +145,7 @@ export async function openRazorpayCheckout(options) {
       theme: { color: '#a855f7' },
     })
     rzp.on('payment.failed', (response) => {
-      reject(new Error(response.error?.description || 'Payment failed'))
+      reject(new Error(USER_MESSAGES.paymentFailed))
     })
     rzp.open()
   })

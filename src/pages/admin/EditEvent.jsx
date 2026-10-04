@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/authContext'
 import FormAlert from '../../components/FormAlert'
 import ConfirmModal from '../../components/ConfirmModal'
 import PageHeader from '../../components/PageHeader'
+import { toUserMessage, USER_MESSAGES } from '../../lib/userMessage'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -75,7 +76,7 @@ export default function EditEvent() {
           }))
         )
       } catch (err) {
-        console.error(err)
+        setFormError(toUserMessage(err, USER_MESSAGES.loadPage))
       } finally {
         setLoadingPage(false)
       }
@@ -118,8 +119,12 @@ export default function EditEvent() {
   }
 
   async function removeExistingImage(id) {
-    await api(`/api/events/${eventId}/images/${id}`, { method: 'DELETE' })
-    setExistingImages((prev) => prev.filter((img) => img.id !== id))
+    try {
+      await api(`/api/events/${eventId}/images/${id}`, { method: 'DELETE' })
+      setExistingImages((prev) => prev.filter((img) => img.id !== id))
+    } catch (err) {
+      toast.error(toUserMessage(err, 'We could not remove that image. Please try again.'))
+    }
   }
 
   async function handleSubmit(e) {
@@ -171,7 +176,7 @@ export default function EditEvent() {
       toast.success('Event updated!')
       navigate({ to: '/admin' })
     } catch (err) {
-      const message = err.message || 'Update failed'
+      const message = toUserMessage(err, USER_MESSAGES.save)
       setFormError(message)
       toast.error(message)
       setSaveConfirmOpen(false)
@@ -190,8 +195,7 @@ export default function EditEvent() {
       toast.success('Event deleted successfully')
       navigate({ to: '/admin' })
     } catch (err) {
-      console.error('Exception deleting event:', err)
-      const message = err.message || 'Failed to delete event'
+      const message = toUserMessage(err, USER_MESSAGES.delete)
       setFormError(message)
       toast.error(message)
       setDeleting(false)
@@ -205,6 +209,19 @@ export default function EditEvent() {
           <div className="h-8 bg-cascade-surface rounded w-1/3" />
           <div className="h-48 bg-cascade-surface rounded" />
         </div>
+      </div>
+    )
+  }
+
+  if (!eventName && formError) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12 space-y-4">
+        <FormAlert type="error" title="Could not open this event">
+          {formError}
+        </FormAlert>
+        <button type="button" className="btn-secondary" onClick={() => navigate({ to: '/admin' })}>
+          Back to admin
+        </button>
       </div>
     )
   }

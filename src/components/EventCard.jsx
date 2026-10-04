@@ -1,62 +1,80 @@
 import { Link } from '@tanstack/react-router'
-import { motion } from 'framer-motion'
-import { Calendar, User, IndianRupee } from 'lucide-react'
+import { Calendar, User } from 'lucide-react'
 import { format } from 'date-fns'
 import EventCarousel from './EventCarousel'
 
+import { eventImageUrl, sortedEventImages } from '../lib/eventImages'
+
 export default function EventCard({ event, images = [], organizer }) {
-  const feeDisplay = event.fee_amount === 0 ? 'Free' : `₹${(event.fee_amount / 100).toLocaleString('en-IN')}`
+  const feeDisplay =
+    event.fee_amount === 0
+      ? 'Free'
+      : `₹${(event.fee_amount / 100).toLocaleString('en-IN')}`
+
   const isFree = event.fee_amount === 0
+  const cardImages = images.length ? images : sortedEventImages(event)
+  const hasImage = cardImages.some(eventImageUrl)
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="card overflow-hidden group"
-    >
-      <div className="aspect-video bg-cascade-dark relative overflow-hidden">
-        {images?.length > 0 ? (
-          <EventCarousel images={images} alt={event.name} />
+    <article className="event-card">
+      {/* Event image */}
+      <div className="event-card-media">
+        {hasImage ? (
+          <EventCarousel
+            images={cardImages}
+            alt={event.name}
+          />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cascade-purple/20 to-cascade-dark">
-            <Calendar className="w-16 h-16 text-cascade-purple/40" />
+          <div className="event-card-placeholder">
+            <Calendar className="w-10 h-10 text-gray-600" />
           </div>
         )}
-        <div className="absolute top-3 right-3">
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-semibold ${
-              isFree
-                ? 'bg-cascade-gold/90 text-cascade-darker'
-                : 'bg-cascade-purple/90 text-white'
-            }`}
-          >
-            {feeDisplay}
-          </span>
-        </div>
+
+        {/* Fee */}
+        <span
+          className={`event-fee ${
+            isFree ? 'event-fee-free' : 'event-fee-paid'
+          }`}
+        >
+          {feeDisplay}
+        </span>
       </div>
-      <div className="p-5">
-        <h3 className="font-bold text-lg text-white group-hover:text-cascade-purple-light transition-colors line-clamp-2 mb-2">
+
+      {/* Content */}
+      <div className="event-card-body">
+
+        <h3 className="event-card-title">
           {event.name}
         </h3>
-        <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-          <Calendar className="w-4 h-4 flex-shrink-0" />
-          <span>{format(new Date(event.event_date), 'MMM d, yyyy • h:mm a')}</span>
-        </div>
-        {organizer && (
-          <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
-            <User className="w-4 h-4 flex-shrink-0" />
-            <span>by {organizer.full_name}</span>
+
+        <div className="event-card-info">
+          <div>
+            <Calendar />
+            <span>
+              {format(
+                new Date(event.event_date),
+                'MMM d, yyyy • h:mm a'
+              )}
+            </span>
           </div>
-        )}
+
+          {organizer && (
+            <div>
+              <User />
+              <span>by {organizer.full_name}</span>
+            </div>
+          )}
+        </div>
+
         <Link
           to="/events/$eventId"
           params={{ eventId: event.id }}
-          className="btn-primary inline-flex items-center gap-2 w-full justify-center py-2.5"
+          className="event-card-button"
         >
           View Details
         </Link>
+
       </div>
-    </motion.div>
+    </article>
   )
 }

@@ -9,6 +9,7 @@ import { useAuth } from '../lib/authContext'
 import FormAlert from '../components/FormAlert'
 import ConfirmModal from '../components/ConfirmModal'
 import { CheckCircle } from 'lucide-react'
+import { toUserMessage, USER_MESSAGES } from '../lib/userMessage'
 
 function DynamicFormField({ field, register, errors }) {
   const { field_key, field_label, field_type, options, is_required } = field
@@ -102,6 +103,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const [loadingPage, setLoadingPage] = useState(true)
   const [formError, setFormError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [pendingData, setPendingData] = useState(null)
   const [success, setSuccess] = useState(null)
 
@@ -113,8 +115,10 @@ export default function Register() {
         const ev = await api(`/api/events/${eventId}`)
         setEvent(ev)
         setFormFields(ev.form_fields || [])
-      } catch {
+        setLoadError('')
+      } catch (err) {
         setEvent(null)
+        setLoadError(toUserMessage(err, USER_MESSAGES.loadPage))
       } finally {
         setLoadingPage(false)
       }
@@ -149,7 +153,7 @@ export default function Register() {
     if (isPaid) {
       const frontendKey = import.meta.env.VITE_RAZORPAY_KEY_ID
       if (!frontendKey) {
-        const message = 'Payment gateway is not configured. You cannot complete paid registration yet.'
+        const message = 'Payments are temporarily unavailable. Please try again later.'
         setFormError(message)
         toast.error(message, { duration: 10000 })
         return
@@ -176,11 +180,12 @@ export default function Register() {
       if (isPaid) {
         try {
           await createRazorpayOrder(registration.id, event.fee_amount)
-          toast.success('Payment order created. Redirecting to payment page...')
+          toast.success('Registration saved. Continue to payment…')
         } catch (err) {
-          toast.error(err.message || 'Failed to create payment order. You can retry on the payment page.', {
-            duration: 8000,
-          })
+          toast.error(
+            toUserMessage(err, 'Registration is saved. You can complete payment from your dashboard.'),
+            { duration: 8000 }
+          )
         }
         navigate({
           to: '/payment',
@@ -195,7 +200,7 @@ export default function Register() {
       toast.success('Registration successful!')
       setSuccess({ eventName: event.name })
     } catch (err) {
-      const message = err.message || 'Something went wrong'
+      const message = toUserMessage(err, 'We could not complete your registration. Please try again.')
       setFormError(message)
       toast.error(message)
       setPendingData(null)
@@ -218,7 +223,9 @@ export default function Register() {
   if (!event) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <p className="text-gray-500">Event not found.</p>
+        <p className="text-gray-400">
+          {loadError || 'This event is not available.'}
+        </p>
         <Link to="/" className="text-cascade-purple hover:underline mt-4 inline-block">
           Back to events
         </Link>

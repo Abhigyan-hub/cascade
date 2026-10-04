@@ -5,6 +5,7 @@ import { verifyEmail } from '../lib/auth'
 import { useAuth } from '../lib/authContext'
 import toast from 'react-hot-toast'
 import FormAlert from '../components/FormAlert'
+import { toUserMessage } from '../lib/userMessage'
 
 export default function VerifyEmail() {
   const search = useSearch({ strict: false })
@@ -22,7 +23,7 @@ export default function VerifyEmail() {
       if (cancelled) return
       if (error) {
         setStatus('error')
-        setMessage(error.message || 'This confirmation link is invalid or expired.')
+        setMessage(toUserMessage(error, 'This confirmation link is invalid or has expired.'))
         return
       }
       await applyAuth(data)
@@ -46,7 +47,7 @@ export default function VerifyEmail() {
         <h1 className="text-2xl font-bold text-white mb-4">Confirm email</h1>
         {status === 'working' && <p className="text-gray-400">Confirming your email…</p>}
         {status === 'missing' && (
-          <FormAlert type="error" title="Missing link">
+          <FormAlert type="error" title="Open the email link">
             Open the confirmation link from your email.
           </FormAlert>
         )}

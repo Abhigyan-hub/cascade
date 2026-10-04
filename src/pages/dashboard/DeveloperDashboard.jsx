@@ -12,6 +12,8 @@ import {
 import { format } from 'date-fns'
 import { useAuth } from '../../lib/authContext'
 import PageHeader from '../../components/PageHeader'
+import FormAlert from '../../components/FormAlert'
+import { toUserMessage, USER_MESSAGES } from '../../lib/userMessage'
 
 export default function DeveloperDashboard() {
   const { profile } = useAuth()
@@ -24,6 +26,7 @@ export default function DeveloperDashboard() {
   const [recentActivity, setRecentActivity] = useState([])
   const [recentUsers, setRecentUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     async function fetch() {
@@ -36,8 +39,9 @@ export default function DeveloperDashboard() {
         setStats(nextStats)
         setRecentActivity(activity || [])
         setRecentUsers(usersList || [])
+        setLoadError('')
       } catch (err) {
-        console.error('Exception in DeveloperDashboard fetch:', err)
+        setLoadError(toUserMessage(err, USER_MESSAGES.loadPage))
       } finally {
         setLoading(false)
       }
@@ -52,6 +56,14 @@ export default function DeveloperDashboard() {
           title="Super Admin"
           subtitle="Full system oversight"
         />
+
+        {loadError && (
+          <div className="mb-6">
+            <FormAlert type="error" title="Could not load overview">
+              {loadError}
+            </FormAlert>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           <div className="card p-6">

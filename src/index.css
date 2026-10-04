@@ -1,49 +1,513 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =========================================================
+   CASCADE â€” Event Platform
+   Clean institutional event-website design
+   ========================================================= */
 
 @layer base {
   html {
     scroll-behavior: smooth;
   }
+
   body {
     @apply bg-cascade-darker text-white font-sans antialiased;
-    background-image: radial-gradient(ellipse at top, rgba(168, 85, 247, 0.08) 0%, transparent 50%);
+    background-image: none;
+  }
+
+  ::selection {
+    @apply bg-cascade-purple text-white;
+  }
+
+  /* Cleaner scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0f1014;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #3a3b43;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5b5c66;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
   }
 }
 
 @layer components {
+
+  /* =========================================================
+     BUTTONS
+     ========================================================= */
+
   .btn-primary {
-    @apply px-6 py-3 rounded-xl font-semibold bg-cascade-purple hover:bg-cascade-purple-light
-           text-white transition-all duration-200 shadow-cascade hover:shadow-lg
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-lg font-semibold bg-cascade-purple text-white transition-colors duration-150 hover:bg-cascade-purple-light focus:outline-none focus:ring-2 focus:ring-cascade-purple/40 disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
   .btn-secondary {
-    @apply px-6 py-3 rounded-xl font-semibold border-2 border-cascade-purple text-cascade-purple
-           hover:bg-cascade-purple/10 transition-all duration-200;
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-lg font-semibold border border-cascade-border bg-transparent text-gray-200 transition-colors duration-150 hover:bg-white/5 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-cascade-purple/30 disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
   .btn-gold {
-    @apply px-6 py-3 rounded-xl font-semibold bg-cascade-gold hover:bg-cascade-gold-light
-           text-cascade-darker transition-all duration-200 shadow-cascade-gold;
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-lg font-semibold bg-cascade-gold text-cascade-darker transition-colors duration-150 hover:bg-cascade-gold-light focus:outline-none focus:ring-2 focus:ring-cascade-gold/30 disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  .card {
-    @apply bg-cascade-surface border border-cascade-border rounded-2xl shadow-card
-           transition-all duration-200 hover:border-cascade-purple/30;
+
+
+    /* =========================================
+     EVENT CARDS
+     ========================================= */
+  
+    .event-card {
+      background: #111117;
+      border: 1px solid #292934;
+      border-radius: 14px;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      transition:
+        transform 180ms ease,
+        border-color 180ms ease;
+    }
+  
+    .event-card:hover {
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+  
+  
+    /* IMAGE */
+  
+    .event-card-media {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      overflow: hidden;
+      background: #0d0d12;
+    }
+  
+    .event-card-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+  
+      transition: transform 350ms ease;
+    }
+  
+    .event-card:hover .event-card-media img {
+      transform: scale(1.025);
+    }
+  
+  
+    /* Image fallback */
+  
+    .event-card-placeholder {
+      width: 100%;
+      height: 100%;
+  
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  
+      background: #15151d;
+    }
+  
+  
+    /* PRICE */
+  
+    .event-fee {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+  
+      padding: 5px 10px;
+  
+      border-radius: 6px;
+  
+      font-size: 12px;
+      font-weight: 700;
+  
+      backdrop-filter: blur(8px);
+    }
+  
+    .event-fee-free {
+      background: #f5c542;
+      color: #111117;
+    }
+  
+    .event-fee-paid {
+      background: #a855f7;
+      color: white;
+    }
+  
+  
+    /* CONTENT */
+  
+    .event-card-body {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+  
+  
+    /* TITLE */
+  
+      .event-card-title {
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.45;
+      min-height: 2.9em;
+      margin: 0 0 14px;
+  
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+    }
+  
+  
+    /* INFORMATION */
+  
+    .event-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 3.2em;
+      margin-bottom: 18px;
+    }
+  
+    .event-card-info>div {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  
+      color: #9ca3af;
+  
+      font-size: 13px;
+      line-height: 1.3;
+    }
+  
+    .event-card-info svg {
+      width: 15px;
+      height: 15px;
+  
+      flex-shrink: 0;
+  
+      color: #73737f;
+    }
+  
+  
+    /* BUTTON */
+  
+    .event-card-button {
+      width: 100%;
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  
+      padding: 11px 16px;
+  
+      border-radius: 8px;
+  
+      background: #a855f7;
+      color: white;
+  
+      font-size: 14px;
+      font-weight: 600;
+  
+      transition:
+        background 180ms ease,
+        transform 180ms ease;
+    }
+  
+    .event-card-button:hover {
+      background: #b56af7;
+    }
+  
+    .event-card-button:active {
+      transform: scale(0.985);
+    }
+
+
+  /* =========================================================
+     EVENT INFORMATION
+     ========================================================= */
+
+  .event-date {
+    @apply inline-flex items-center gap-2 text-sm font-medium text-cascade-gold;
   }
+
+  .event-location {
+    @apply text-sm text-gray-400;
+  }
+
+  .event-status {
+    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .event-status-open {
+    @apply bg-emerald-500/10 text-emerald-400 border border-emerald-500/20;
+  }
+
+  .event-status-closed {
+    @apply bg-red-500/10 text-red-400 border border-red-500/20;
+  }
+
+
+  /* =========================================================
+     INPUTS
+     ========================================================= */
+
   .input-cascade {
-    @apply w-full px-4 py-3 rounded-xl bg-cascade-dark border border-cascade-border
-           text-white placeholder-gray-500 focus:outline-none focus:ring-2
-           focus:ring-cascade-purple/50 focus:border-cascade-purple transition-all;
+    @apply w-full px-4 py-3 rounded-lg bg-cascade-dark border border-cascade-border text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cascade-purple/30 focus:border-cascade-purple transition-colors duration-150;
   }
+
+  .input-cascade:hover {
+    @apply border-gray-600;
+  }
+
   .input-cascade-error {
-    @apply border-red-500/60 focus:ring-red-500/40 focus:border-red-400;
+    @apply border-red-500/60 focus:ring-red-500/30 focus:border-red-400;
   }
+
   .input-cascade-success {
     @apply border-emerald-500/50 focus:ring-emerald-500/30 focus:border-emerald-400;
   }
+
+
+  /* =========================================================
+     PAGE STRUCTURE
+     ========================================================= */
+
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .page-section {
+    @apply py-10 sm:py-14 lg:py-16;
+  }
+
+  .section-heading {
+    @apply text-2xl sm:text-3xl font-bold tracking-tight text-white;
+  }
+
+  .section-description {
+    @apply mt-2 text-gray-400 max-w-2xl leading-relaxed;
+  }
+
+
+  /* =========================================================
+     PAGE HEADER
+     ========================================================= */
+
   .sticky-page-header {
-    @apply sticky z-40 bg-cascade-darker/95 backdrop-blur-lg border-b border-cascade-border
-           -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-8;
+    @apply sticky z-40 bg-cascade-darker border-b border-cascade-border -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-8;
+
     top: 4rem;
+  }
+
+
+  /* =========================================================
+     NAVIGATION
+     ========================================================= */
+
+  .nav-link {
+    @apply text-sm font-medium text-gray-400 transition-colors duration-150 hover:text-white;
+  }
+
+  .nav-link-active {
+    @apply text-white;
+  }
+
+
+  /* =========================================================
+     EVENT HERO
+     ========================================================= */
+
+  .event-hero {
+    @apply relative overflow-hidden rounded-xl border border-cascade-border bg-cascade-surface h-full min-h-[320px] lg:min-h-[380px];
+  }
+
+  .event-hero-image {
+    @apply absolute inset-0 w-full h-full object-cover;
+  }
+
+  .event-hero-overlay {
+    @apply absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent;
+  }
+
+  .event-hero-content {
+    @apply absolute bottom-0 left-0 right-0 p-6 sm:p-8;
+  }
+
+
+  /* =========================================================
+     FILTERS / SEARCH
+     ========================================================= */
+
+  .filter-bar {
+    @apply flex flex-col sm:flex-row gap-3 p-4 bg-cascade-surface border border-cascade-border rounded-xl;
+  }
+
+  .filter-button {
+    @apply px-4 py-2 rounded-lg border border-cascade-border text-sm font-medium text-gray-400 transition-colors duration-150 hover:text-white hover:bg-white/5;
+  }
+
+  .filter-button-active {
+    @apply bg-cascade-purple border-cascade-purple text-white;
+  }
+
+
+  /* =========================================================
+     ADMIN / DATA TABLES
+     ========================================================= */
+
+  .data-table {
+    @apply w-full text-left border-collapse;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-cascade-dark border-b border-cascade-border;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-sm text-gray-300 border-b border-cascade-border;
+  }
+
+  .data-table tbody tr {
+    @apply transition-colors duration-100 hover:bg-white/[0.025];
+  }
+
+
+  /* =========================================================
+     BADGES
+     ========================================================= */
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border;
+  }
+
+  .badge-purple {
+    @apply bg-cascade-purple/10 text-cascade-purple-light border-cascade-purple/20;
+  }
+
+  .badge-gold {
+    @apply bg-cascade-gold/10 text-cascade-gold border-cascade-gold/20;
+  }
+
+
+  /* =========================================================
+     EMPTY / LOADING STATES
+     ========================================================= */
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center text-center py-16 px-6 border border-dashed border-cascade-border rounded-xl;
+  }
+
+  .loading-spinner {
+    @apply w-6 h-6 border-2 border-gray-700 border-t-cascade-purple rounded-full animate-spin;
+  }
+}
+
+
+/* =========================================================
+   SMALL UTILITY DETAILS
+   ========================================================= */
+
+@layer utilities {
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .border-subtle {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .divider {
+    @apply border-t border-cascade-border;
+  }
+}
+
+.hero-home {
+  background: #050508;
+}
+
+.hero-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12em;
+}
+
+.rolling-word {
+  display: block;
+  height: 1.16em;
+  overflow: hidden;
+  color: #c084fc;
+}
+
+.rolling-word-track {
+  display: flex;
+  flex-direction: column;
+  animation: rollHeroText 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.rolling-word-track span {
+  display: block;
+  height: 1.16em;
+  line-height: 1.16em;
+}
+
+@keyframes rollHeroText {
+  0%,
+  22% {
+    transform: translateY(0);
+  }
+  28%,
+  48% {
+    transform: translateY(-1.16em);
+  }
+  54%,
+  74% {
+    transform: translateY(-2.32em);
+  }
+  80%,
+  96% {
+    transform: translateY(-3.48em);
+  }
+  100% {
+    transform: translateY(-3.48em);
+  }
+}
+
+.events-section {
+  background: #050508;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rolling-word-track {
+    animation: none;
+  }
+
+  .event-card,
+  .event-hero,
+  .btn-primary {
+    transition: none;
   }
 }

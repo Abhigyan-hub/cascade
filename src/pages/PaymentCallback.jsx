@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import { verifyRazorpayPayment } from '../lib/razorpay'
 import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { toUserMessage, USER_MESSAGES } from '../lib/userMessage'
 
 export default function PaymentCallback() {
   const search = useSearch({ strict: false })
@@ -20,7 +21,7 @@ export default function PaymentCallback() {
 
   useEffect(() => {
     if (!registrationId) {
-      setError('Missing registration ID')
+      setError('This payment page is incomplete. Open payment from your dashboard.')
       setStatus('error')
       return
     }
@@ -28,7 +29,7 @@ export default function PaymentCallback() {
     async function verifyPayment() {
       try {
         if (paymentStatus === 'failed' || paymentStatus === 'cancelled' || search?.razorpay_payment_status === 'failed') {
-          setError('Payment was cancelled or failed. Please try again.')
+          setError(USER_MESSAGES.paymentFailed)
           setStatus('error')
           setTimeout(() => {
             navigate({
@@ -66,22 +67,21 @@ export default function PaymentCallback() {
                     navigate({ to: '/dashboard' })
                   }, 2000)
                 } else {
-                  setError('Payment verification is taking longer than expected. Please check your dashboard.')
+                  setError(USER_MESSAGES.paymentVerify)
                   setStatus('error')
                   setTimeout(() => {
                     navigate({ to: '/dashboard' })
                   }, 5000)
                 }
               } catch {
-                setError('Payment verification is taking longer than expected. Please check your dashboard.')
+                setError(USER_MESSAGES.paymentVerify)
                 setStatus('error')
               }
             }, 3000)
           }
         }
       } catch (err) {
-        console.error('Payment verification error:', err)
-        setError(err.message || 'Payment verification failed')
+        setError(toUserMessage(err, USER_MESSAGES.paymentVerify))
         setStatus('error')
         setTimeout(() => {
           navigate({ to: '/dashboard' })
@@ -119,8 +119,8 @@ export default function PaymentCallback() {
         {status === 'error' && (
           <>
             <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-white mb-2">Payment Verification Failed</h1>
-            <p className="text-gray-400 mb-4">{error || 'Unable to verify payment'}</p>
+            <h1 className="text-2xl font-bold text-white mb-2">We could not confirm payment</h1>
+            <p className="text-gray-400 mb-4">{error || USER_MESSAGES.paymentVerify}</p>
             <div className="flex gap-4 justify-center">
               <button
                 onClick={() => navigate({ to: '/dashboard' })}

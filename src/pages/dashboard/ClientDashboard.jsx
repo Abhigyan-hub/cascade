@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { useAuth } from '../../lib/authContext'
 import PageHeader from '../../components/PageHeader'
 import FormAlert from '../../components/FormAlert'
+import { toUserMessage } from '../../lib/userMessage'
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'text-cascade-gold', icon: Clock },
@@ -28,7 +29,6 @@ export default function ClientDashboard() {
 
     // If no profile after auth loads, still resolve loading (empty state is valid)
     if (!profile?.id) {
-      console.log('No profile ID available - showing empty dashboard')
       setRegistrations([])
       setLoading(false)
       return
@@ -38,15 +38,13 @@ export default function ClientDashboard() {
 
     async function fetchRegistrations() {
       try {
-        console.log('Fetching registrations for user:', profile.id)
         const data = await api('/api/registrations/mine')
         if (cancelled) return
         setRegistrations(data || [])
         setError(null)
       } catch (err) {
         if (cancelled) return
-        console.error('Exception fetching registrations:', err)
-        setError(err.message || 'An error occurred')
+        setError(toUserMessage(err, 'We could not load your registrations. Please refresh.'))
         setRegistrations([])
       } finally {
         if (!cancelled) {

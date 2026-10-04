@@ -6,6 +6,7 @@ import EventCarousel from '../components/EventCarousel'
 import { Calendar, MapPin, User, IndianRupee } from 'lucide-react'
 import { format } from 'date-fns'
 import { useAuth } from '../lib/authContext'
+import { toUserMessage, USER_MESSAGES } from '../lib/userMessage'
 
 export default function EventDetail() {
   const { eventId } = useParams({ strict: false })
@@ -16,6 +17,7 @@ export default function EventDetail() {
   const [formFields, setFormFields] = useState([])
   const [alreadyRegistered, setAlreadyRegistered] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -39,9 +41,10 @@ export default function EventDetail() {
         setOrganizer(ev.organizer || ev.profiles)
         setFormFields(ev.form_fields || [])
         setAlreadyRegistered(!!ev.already_registered)
+        setLoadError('')
       } catch (error) {
         if (!cancelled) {
-          console.error('Event detail fetch failed:', error)
+          setLoadError(toUserMessage(error, USER_MESSAGES.loadPage))
         }
       } finally {
         if (!cancelled) {
@@ -73,7 +76,7 @@ export default function EventDetail() {
   if (!event) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <p className="text-gray-500">Event not found.</p>
+        <p className="text-gray-400">{loadError || 'This event is not available.'}</p>
         <Link to="/" className="text-cascade-purple hover:underline mt-4 inline-block">
           Back to events
         </Link>

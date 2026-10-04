@@ -29,7 +29,7 @@ export default function ProtectedRoute({ requiredRole, children }) {
           {authError && (
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mx-4 mt-4 mb-4">
               <p className="text-yellow-400 text-sm text-center">
-                {authError || 'Still loading... retrying'}
+                {authError || 'Still connecting to your account…'}
               </p>
             </div>
           )}
@@ -43,7 +43,7 @@ export default function ProtectedRoute({ requiredRole, children }) {
         <div className="text-center space-y-4">
           <div className="animate-pulse flex flex-col items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-cascade-purple/30" />
-            <p className="text-gray-500 text-sm">Still loading... retrying</p>
+            <p className="text-gray-500 text-sm">Still connecting… you can keep waiting or go back.</p>
             {authError && (
               <p className="text-yellow-400 text-sm mt-2">{authError}</p>
             )}
@@ -67,7 +67,7 @@ export default function ProtectedRoute({ requiredRole, children }) {
           {loading && authError && (
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mx-4 mt-4 mb-4">
               <p className="text-yellow-400 text-sm text-center">
-                {authError || 'Still loading... retrying'}
+                {authError || 'Still connecting to your account…'}
               </p>
             </div>
           )}
@@ -85,7 +85,7 @@ export default function ProtectedRoute({ requiredRole, children }) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <p className="text-gray-500">Verifying access... retrying</p>
+          <p className="text-gray-500">Checking your access…</p>
           {authError && (
             <p className="text-yellow-400 text-sm mt-2">{authError}</p>
           )}
@@ -116,7 +116,7 @@ export default function ProtectedRoute({ requiredRole, children }) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <p className="text-gray-500">Loading profile... retrying</p>
+          <p className="text-gray-500">Loading your profile…</p>
           {authError && (
             <p className="text-yellow-400 text-sm mt-2">{authError}</p>
           )}

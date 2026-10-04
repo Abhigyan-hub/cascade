@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { eventImageUrl } from '../lib/eventImages'
 
 export default function EventCarousel({ images, alt = 'Event' }) {
   const [current, setCurrent] = useState(0)
-  const urls = (images || [])
-    .map((img) => img.public_url || img.url)
-    .filter(Boolean)
+  const urls = (images || []).map(eventImageUrl).filter(Boolean)
 
   useEffect(() => {
     if (urls.length <= 1) return

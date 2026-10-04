@@ -5,6 +5,7 @@ import { signUp, resendVerification } from '../lib/auth'
 import { useAuth } from '../lib/authContext'
 import toast from 'react-hot-toast'
 import FormAlert from '../components/FormAlert'
+import { toUserMessage, USER_MESSAGES } from '../lib/userMessage'
 import { getCookieConsent, setRememberedUser } from '../lib/preferences'
 
 export default function SignUp() {
@@ -32,7 +33,7 @@ export default function SignUp() {
           navigate({ to: '/login' })
           return
         }
-        const message = error.message || 'Sign up failed. Please try again.'
+        const message = toUserMessage(error, USER_MESSAGES.signup)
         setFormError(message)
         toast.error(message)
         return
@@ -50,7 +51,7 @@ export default function SignUp() {
       toast.success('Account created!')
       navigate({ to: '/' })
     } catch (err) {
-      const message = err.message || 'An error occurred. Please try again.'
+      const message = toUserMessage(err, USER_MESSAGES.signup)
       setFormError(message)
       toast.error(message)
     } finally {
@@ -126,7 +127,7 @@ export default function SignUp() {
               className="btn-secondary w-full"
               onClick={async () => {
                 const { error } = await resendVerification(email)
-                if (error) toast.error(error.message)
+                if (error) toast.error(toUserMessage(error, USER_MESSAGES.emailSend))
                 else toast.success('Confirmation email sent again')
               }}
             >
